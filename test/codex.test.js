@@ -1,40 +1,28 @@
 import assert from 'node:assert/strict';
+import { EventEmitter } from 'node:events';
+import { PassThrough } from 'node:stream';
 import test from 'node:test';
-import { disableCapabilities, selectEffort } from '../src/codex.js';
+import { CodexTransport } from '../src/codex.js';
 
-test('uses low effort when the model advertises it', () => {
-  assert.equal(
-    selectEffort({
-      defaultReasoningEffort: 'high',
-      supportedReasoningEfforts: [{ reasoningEffort: 'medium' }, { reasoningEffort: 'low' }],
-    }),
-    'low',
-  );
+test('matches JSON-RPC responses to requests', async () => {
+  const child = fakeChild();
+  const transport = new CodexTransport(child, 100);
+  const request = transport.request('model/list', { cursor: null });
+  const sent = JSON.parse(await nextLine(child.stdin));
+  child.stdout.write(`${JSON.stringify({ jsonrpc: '2.0', id: sent.id, result: { data: [] } })}\n`);
+  assert.deepEqual(await request, { data: [] });
+  transport.close();
 });
 
-test('falls back to the model default effort', () => {
-  assert.equal(
-    selectEffort({
-      defaultReasoningEffort: 'medium',
-      supportedReasoningEfforts: [{ reasoningEffort: 'medium' }],
-    }),
-    'medium',
-  );
-});
+function fakeChild() {
+  const child = new EventEmitter();
+  child.stdin = new PassThrough();
+  child.stdout = new PassThrough();
+  child.stderr = new PassThrough();
+  child.kill = () => {};
+  return child;
+}
 
-test('disables every inherited plugin, app, and MCP server', () => {
-  const overlay = disableCapabilities({
-    plugins: ['alpha@local'],
-    apps: { calendar: { enabled: true } },
-    mcp_servers: { browser: { enabled: true } },
-  });
-  assert.deepEqual(overlay.plugins, { 'alpha@local': { enabled: false } });
-  assert.deepEqual(overlay.apps, {
-    calendar: { enabled: false },
-    _default: { enabled: false },
-  });
-  assert.deepEqual(overlay.mcp_servers, { browser: { enabled: false } });
-  assert.equal(overlay.features.hooks, false);
-  assert.equal(overlay.web_search, 'disabled');
-});
-
+function nextLine(stream) {
+  return new Promise((resolve) => stream.once('data', (chunk) => resolve(chunk.toString().trim())));
+}

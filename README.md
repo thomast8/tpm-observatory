@@ -1,14 +1,16 @@
 # TPM Observatory
 
-A local Codex plugin that discovers the models currently available to your account and measures their observed output tokens per minute over time.
+A local Codex plugin that discovers the models currently available to your account and passively measures their observed output tokens per minute over time.
 
-The panel reports each model's latest result, average, 95% confidence interval for the mean, minimum, maximum, and sample count. Measurements use an isolated ephemeral Codex turn with no tools, environment access, plugins, web search, or project files.
+The panel reports each model and speed tier's latest result, average, 95% confidence interval for the mean, minimum, maximum, and sample count. Completed main-chat turns are captured automatically by bundled hooks. No benchmark prompt or extra model call is made.
 
 ## Measurement
 
-`TPM = output tokens / completed turn duration in minutes`
+`TPM = output tokens / active model-generation time in minutes`
 
-Output tokens include reasoning output tokens because that is the complete generation work reported by Codex. Turn duration is end-to-end model turn time, so the result is an observed throughput measure rather than decode-only speed. Benchmarks use the model's lowest advertised reasoning effort and consume normal Codex allowance.
+Output tokens include reasoning output tokens because that is the complete generation work reported by Codex. Active duration sums streamed reasoning and assistant-message time while excluding tool and command waits. Standard, Fast, and Ultra Fast observations remain separate series.
+
+Codex requires review and trust for a newly installed plugin hook. After installing or upgrading, approve the TPM Observatory hooks once when Codex asks. The collector reads only the current local transcript and stores numeric telemetry, model, effort, speed tier, session ID, and turn ID in the plugin's private SQLite database.
 
 ## Development
 

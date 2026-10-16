@@ -3,8 +3,7 @@ import { resolve, join } from 'node:path';
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import { registerAppTool } from '@modelcontextprotocol/ext-apps/server';
-import { z } from 'zod';
-import { benchmarkModel, discoverModels } from './codex.js';
+import { discoverModels } from './codex.js';
 import { summarize } from './stats.js';
 import { SampleStore } from './store.js';
 
@@ -12,7 +11,7 @@ const PANEL_URI = 'ui://tpm-observatory/panel.html';
 const dataDir = resolve(process.env.PLUGIN_DATA || '.data');
 const store = new SampleStore(join(dataDir, 'samples.sqlite'));
 const panelHtml = await readFile(new URL('./panel.html', import.meta.url), 'utf8');
-const server = new McpServer({ name: 'tpm-observatory', version: '0.1.0' });
+const server = new McpServer({ name: 'tpm-observatory', version: '0.2.0' });
 let cachedCatalogue = null;
 
 server.registerResource(
@@ -55,28 +54,6 @@ registerAppTool(
   async () => dashboardReply('TPM Observatory refreshed.', true),
 );
 
-registerAppTool(
-  server,
-  'tpm_benchmark',
-  {
-    title: 'Benchmark Codex model',
-    description: 'Run one isolated throughput sample. This consumes normal Codex allowance.',
-    inputSchema: { model: z.string().min(1) },
-    _meta: { ui: { visibility: ['app'] } },
-  },
-  async ({ model }) => {
-    try {
-      const sample = await benchmarkModel(model, dataDir);
-      store.add(sample);
-      return dashboardReply(`Measured ${sample.displayName} at ${Math.round(sample.tpm)} TPM.`, true);
-    } catch (error) {
-      const message = safeMessage(error);
-      const reply = await dashboardReply(`Benchmark failed: ${message}`, true);
-      return { ...reply, isError: true };
-    }
-  },
-);
-
 async function dashboardReply(message, forceCatalogue = false) {
   const dashboard = await buildDashboard(forceCatalogue);
   return { content: [{ type: 'text', text: message }], structuredContent: { dashboard, message } };
@@ -93,29 +70,46 @@ async function buildDashboard(forceCatalogue) {
   } catch (error) {
     catalogueError = safeMessage(error);
   }
-  const samples = store.list();
+  const samples = store.list(2_000, 'observed');
   const catalogue = new Map(models.map((model) => [model.model, model]));
-  const ids = new Set([...catalogue.keys(), ...samples.map((sample) => sample.model)]);
-  const rows = [...ids].map((id) => modelRow(id, catalogue.get(id), samples));
+  const series = new Set(samples.map((sample) => seriesId(sample.model, sample.serviceTier)));
+  for (const model of models) {
+    series.add(seriesId(model.model, 'default'));
+    for (const tier of model.serviceTiers ?? []) series.add(seriesId(model.model, tier.id));
+  }
+  const rows = [...series].map((id) => modelRow(id, catalogue, samples));
   const measured = rows.filter((row) => row.stats);
   return {
     generatedAt: new Date().toISOString(),
     catalogueError,
-    measurement: 'Output tokens, including reasoning output, per completed turn minute.',
+    collector: store.getCollectorStatus() ?? {
+      state: 'waiting',
+      message: 'Waiting for the next completed Codex turn.',
+      lastAttemptAt: null,
+      lastSampleAt: null,
+    },
+    measurement: 'Output tokens, including reasoning output, per active model-generation minute.',
     runCount: samples.length,
-    bestModel: measured.toSorted((a, b) => b.stats.average - a.stats.average)[0]?.model ?? null,
-    models: rows.toSorted((a, b) => Number(b.available) - Number(a.available)),
+    bestSeries: measured.toSorted((a, b) => b.stats.average - a.stats.average)[0]?.seriesId ?? null,
+    models: rows.toSorted(compareRows),
   };
 }
 
-function modelRow(id, model, allSamples) {
-  const samples = allSamples.filter((sample) => sample.model === id).toReversed();
+function modelRow(id, catalogue, allSamples) {
+  const [modelId, serviceTier] = id.split('::');
+  const model = catalogue.get(modelId);
+  const samples = allSamples
+    .filter((sample) => sample.model === modelId && sample.serviceTier === serviceTier)
+    .toReversed();
   const stats = summarize(samples.map((sample) => sample.tpm));
   return {
-    model: id,
-    displayName: model?.displayName ?? samples.at(-1)?.displayName ?? id,
+    seriesId: id,
+    model: modelId,
+    serviceTier,
+    tierName: tierName(model, serviceTier),
+    displayName: model?.displayName ?? samples.at(-1)?.displayName ?? modelId,
     available: Boolean(model),
-    effort: model ? preferredEffort(model) : samples.at(-1)?.effort ?? null,
+    effort: samples.at(-1)?.effort ?? model?.defaultReasoningEffort ?? null,
     isDefault: Boolean(model?.isDefault),
     stats,
     latest: samples.at(-1) ?? null,
@@ -123,9 +117,24 @@ function modelRow(id, model, allSamples) {
   };
 }
 
-function preferredEffort(model) {
-  const supported = model.supportedReasoningEfforts?.map((option) => option.reasoningEffort) ?? [];
-  return supported.includes('low') ? 'low' : model.defaultReasoningEffort;
+function tierName(model, serviceTier) {
+  if (serviceTier === 'default') return 'Standard';
+  const catalogName = model?.serviceTiers?.find((tier) => tier.id === serviceTier)?.name;
+  if (catalogName) return catalogName;
+  if (/ultra.?fast/i.test(serviceTier)) return 'Ultra Fast';
+  if (/priority|fast/i.test(serviceTier)) return 'Fast';
+  return serviceTier.replaceAll(/[_-]+/g, ' ').replaceAll(/\b\w/g, (letter) => letter.toUpperCase());
+}
+
+function seriesId(model, serviceTier) {
+  return `${model}::${serviceTier || 'default'}`;
+}
+
+function compareRows(left, right) {
+  const modelOrder = left.displayName.localeCompare(right.displayName);
+  if (modelOrder !== 0) return modelOrder;
+  const order = { Standard: 0, Fast: 1, 'Ultra Fast': 2 };
+  return (order[left.tierName] ?? 10) - (order[right.tierName] ?? 10);
 }
 
 function safeMessage(error) {

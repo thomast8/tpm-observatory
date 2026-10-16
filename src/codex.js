@@ -1,11 +1,5 @@
 import { spawn } from 'node:child_process';
-import { mkdirSync } from 'node:fs';
-import { performance } from 'node:perf_hooks';
 import { resolve } from 'node:path';
-import { tokensPerMinute } from './stats.js';
-
-const BENCHMARK_PROMPT = `Write a neutral, continuous 250-word description of a fictional coastal town.
-Use plain text only. Do not use tools, inspect files, browse, or discuss this benchmark.`;
 
 export class CodexTransport {
   constructor(child, timeoutMs = 20_000) {
@@ -35,7 +29,7 @@ export class CodexTransport {
     const transport = new CodexTransport(child);
     try {
       await transport.request('initialize', {
-        clientInfo: { name: 'tpm-observatory', title: 'TPM Observatory', version: '0.1.0' },
+        clientInfo: { name: 'tpm-observatory', title: 'TPM Observatory', version: '0.2.0' },
         capabilities: { experimentalApi: true, requestAttestation: false },
       });
       transport.notify('initialized');
@@ -138,76 +132,13 @@ export class CodexTransport {
     this.pending.clear();
   }
 }
-
 export async function discoverModels(dataDir) {
-  const workspace = prepareWorkspace(dataDir);
-  const transport = await CodexTransport.launch(workspace);
+  const transport = await CodexTransport.launch(resolve(dataDir));
   try {
     return await listModels(transport);
   } finally {
     transport.close();
   }
-}
-
-export async function benchmarkModel(requestedModel, dataDir, timeoutMs = 180_000) {
-  const workspace = prepareWorkspace(dataDir);
-  const transport = await CodexTransport.launch(workspace);
-  try {
-    const [models, configResult] = await Promise.all([
-      listModels(transport),
-      transport.request('config/read', { includeLayers: false }),
-    ]);
-    const model = models.find((candidate) => candidate.model === requestedModel);
-    if (!model) throw new Error('That model is no longer in the live Codex catalogue');
-    const effort = selectEffort(model);
-    const thread = await transport.request(
-      'thread/start',
-      threadParams(model.model, workspace, disableCapabilities(configResult.config)),
-    );
-    if (thread.model !== model.model) throw new Error(`Codex selected ${thread.model} instead`);
-    const started = performance.now();
-    const result = await runBenchmarkTurn(transport, thread.thread.id, model.model, effort, workspace, timeoutMs);
-    const durationMs = result.turn.durationMs ?? Math.round(performance.now() - started);
-    const usage = result.usage;
-    if (result.turn.status !== 'completed') throw new Error(`Benchmark ${result.turn.status}`);
-    if (!usage || !Number.isSafeInteger(usage.outputTokens) || usage.outputTokens <= 0) {
-      throw new Error('Codex did not report output-token usage');
-    }
-    return {
-      model: model.model,
-      displayName: model.displayName,
-      effort,
-      measuredAt: new Date().toISOString(),
-      durationMs,
-      outputTokens: usage.outputTokens,
-      reasoningOutputTokens: usage.reasoningOutputTokens ?? 0,
-      tpm: tokensPerMinute(usage.outputTokens, durationMs),
-    };
-  } finally {
-    transport.close();
-  }
-}
-
-export function selectEffort(model) {
-  const supported = model.supportedReasoningEfforts?.map((option) => option.reasoningEffort) ?? [];
-  return supported.includes('low') ? 'low' : model.defaultReasoningEffort;
-}
-
-export function disableCapabilities(config) {
-  const names = (value) => (Array.isArray(value) ? value : Object.keys(value ?? {}));
-  return {
-    features: { apps: false, multi_agent: false, hooks: false },
-    agents: { enabled: false },
-    web_search: 'disabled',
-    plugins: Object.fromEntries(names(config?.plugins).map((name) => [name, { enabled: false }])),
-    apps: {
-      ...Object.fromEntries(names(config?.apps).map((name) => [name, { enabled: false }])),
-      _default: { enabled: false },
-    },
-    mcp_servers: Object.fromEntries(
-      names(config?.mcp_servers).map((name) => [name, { enabled: false }]),
-    ),
-  };
 }
 
 async function listModels(transport) {
@@ -226,75 +157,5 @@ async function listModels(transport) {
     cursor = response.nextCursor;
   }
   throw new Error('Codex model catalogue exceeded the pagination limit');
-}
-
-function prepareWorkspace(dataDir) {
-  const workspace = resolve(dataDir, 'benchmark-workspace');
-  mkdirSync(workspace, { recursive: true, mode: 0o700 });
-  return workspace;
-}
-
-function threadParams(model, cwd, config) {
-  return {
-    model,
-    allowProviderModelFallback: false,
-    cwd,
-    approvalPolicy: 'never',
-    sandbox: 'read-only',
-    ephemeral: true,
-    baseInstructions: 'You are a text generator for a throughput benchmark. Never use tools or inspect files.',
-    developerInstructions: 'Return only the requested passage.',
-    dynamicTools: [],
-    selectedCapabilityRoots: [],
-    environments: [],
-    runtimeWorkspaceRoots: [cwd],
-    config,
-  };
-}
-
-async function runBenchmarkTurn(transport, threadId, model, effort, cwd, timeoutMs) {
-  let turnId = null;
-  let usage = null;
-  let finish;
-  let fail;
-  const completion = new Promise((resolve, reject) => {
-    finish = resolve;
-    fail = reject;
-  });
-  const timer = setTimeout(() => fail(new Error('Benchmark timed out')), timeoutMs);
-  const unsubscribe = transport.onNotification((message) => {
-    const params = message.params ?? {};
-    if (params.threadId !== threadId) return;
-    if (message.method === 'thread/tokenUsage/updated') usage = params.tokenUsage?.total ?? usage;
-    if (message.method === 'model/rerouted') fail(new Error(`Codex rerouted to ${params.toModel}`));
-    if (message.method === 'turn/started') turnId = params.turn.id;
-    if (message.method === 'turn/completed' && (!turnId || params.turn.id === turnId)) {
-      finish({ turn: params.turn, usage });
-    }
-    if (message.method === 'transport/error') fail(new Error('Codex app-server stopped'));
-  });
-  try {
-    const response = await transport.request(
-      'turn/start',
-      {
-        threadId,
-        model,
-        effort,
-        cwd,
-        approvalPolicy: 'never',
-        sandboxPolicy: { type: 'readOnly', networkAccess: false },
-        environments: [],
-        runtimeWorkspaceRoots: [cwd],
-        input: [{ type: 'text', text: BENCHMARK_PROMPT, text_elements: [] }],
-      },
-      30_000,
-    );
-    turnId = response.turn.id;
-    if (response.turn.status !== 'inProgress') finish({ turn: response.turn, usage });
-    return await completion;
-  } finally {
-    clearTimeout(timer);
-    unsubscribe();
-  }
 }
 

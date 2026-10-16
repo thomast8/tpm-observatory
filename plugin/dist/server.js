@@ -36329,10 +36329,6 @@ var ExperimentalMcpServerTasks = class {
   }
 };
 
-// node_modules/zod/index.js
-init_external();
-init_external();
-
 // node_modules/@modelcontextprotocol/sdk/dist/esm/server/mcp.js
 function toolInputElementCount(value, max) {
   let count = 0;
@@ -37365,77 +37361,7 @@ function K3(Z, $, J, X) {
 
 // src/codex.js
 import { spawn } from "node:child_process";
-import { mkdirSync } from "node:fs";
-import { performance } from "node:perf_hooks";
 import { resolve } from "node:path";
-
-// src/stats.js
-var T95 = [
-  12.706,
-  4.303,
-  3.182,
-  2.776,
-  2.571,
-  2.447,
-  2.365,
-  2.306,
-  2.262,
-  2.228,
-  2.201,
-  2.179,
-  2.16,
-  2.145,
-  2.131,
-  2.12,
-  2.11,
-  2.101,
-  2.093,
-  2.086,
-  2.08,
-  2.074,
-  2.069,
-  2.064,
-  2.06,
-  2.056,
-  2.052,
-  2.048,
-  2.045,
-  2.042
-];
-function tokensPerMinute(outputTokens, durationMs) {
-  if (!Number.isSafeInteger(outputTokens) || outputTokens <= 0) {
-    throw new Error("Output tokens must be a positive integer");
-  }
-  if (!Number.isFinite(durationMs) || durationMs <= 0) {
-    throw new Error("Duration must be positive");
-  }
-  return outputTokens * 6e4 / durationMs;
-}
-function summarize(values) {
-  const sorted = values.filter(Number.isFinite).toSorted((left, right) => left - right);
-  if (sorted.length === 0) return null;
-  const count = sorted.length;
-  const average = sorted.reduce((sum, value) => sum + value, 0) / count;
-  const median = count % 2 === 1 ? sorted[Math.floor(count / 2)] : (sorted[count / 2 - 1] + sorted[count / 2]) / 2;
-  const variance = count > 1 ? sorted.reduce((sum, value) => sum + (value - average) ** 2, 0) / (count - 1) : 0;
-  const margin = count > 1 ? tCritical(count - 1) * (Math.sqrt(variance) / Math.sqrt(count)) : null;
-  return {
-    count,
-    average,
-    median,
-    min: sorted[0],
-    max: sorted.at(-1),
-    ci95Low: margin === null ? null : Math.max(0, average - margin),
-    ci95High: margin === null ? null : average + margin
-  };
-}
-function tCritical(degreesOfFreedom) {
-  return degreesOfFreedom <= T95.length ? T95[degreesOfFreedom - 1] : 1.96;
-}
-
-// src/codex.js
-var BENCHMARK_PROMPT = `Write a neutral, continuous 250-word description of a fictional coastal town.
-Use plain text only. Do not use tools, inspect files, browse, or discuss this benchmark.`;
 var CodexTransport = class _CodexTransport {
   constructor(child, timeoutMs = 2e4) {
     this.child = child;
@@ -37463,7 +37389,7 @@ var CodexTransport = class _CodexTransport {
     const transport = new _CodexTransport(child);
     try {
       await transport.request("initialize", {
-        clientInfo: { name: "tpm-observatory", title: "TPM Observatory", version: "0.1.0" },
+        clientInfo: { name: "tpm-observatory", title: "TPM Observatory", version: "0.2.0" },
         capabilities: { experimentalApi: true, requestAttestation: false }
       });
       transport.notify("initialized");
@@ -37559,71 +37485,12 @@ var CodexTransport = class _CodexTransport {
   }
 };
 async function discoverModels(dataDir2) {
-  const workspace = prepareWorkspace(dataDir2);
-  const transport = await CodexTransport.launch(workspace);
+  const transport = await CodexTransport.launch(resolve(dataDir2));
   try {
     return await listModels(transport);
   } finally {
     transport.close();
   }
-}
-async function benchmarkModel(requestedModel, dataDir2, timeoutMs = 18e4) {
-  const workspace = prepareWorkspace(dataDir2);
-  const transport = await CodexTransport.launch(workspace);
-  try {
-    const [models, configResult] = await Promise.all([
-      listModels(transport),
-      transport.request("config/read", { includeLayers: false })
-    ]);
-    const model = models.find((candidate) => candidate.model === requestedModel);
-    if (!model) throw new Error("That model is no longer in the live Codex catalogue");
-    const effort = selectEffort(model);
-    const thread = await transport.request(
-      "thread/start",
-      threadParams(model.model, workspace, disableCapabilities(configResult.config))
-    );
-    if (thread.model !== model.model) throw new Error(`Codex selected ${thread.model} instead`);
-    const started = performance.now();
-    const result = await runBenchmarkTurn(transport, thread.thread.id, model.model, effort, workspace, timeoutMs);
-    const durationMs = result.turn.durationMs ?? Math.round(performance.now() - started);
-    const usage = result.usage;
-    if (result.turn.status !== "completed") throw new Error(`Benchmark ${result.turn.status}`);
-    if (!usage || !Number.isSafeInteger(usage.outputTokens) || usage.outputTokens <= 0) {
-      throw new Error("Codex did not report output-token usage");
-    }
-    return {
-      model: model.model,
-      displayName: model.displayName,
-      effort,
-      measuredAt: (/* @__PURE__ */ new Date()).toISOString(),
-      durationMs,
-      outputTokens: usage.outputTokens,
-      reasoningOutputTokens: usage.reasoningOutputTokens ?? 0,
-      tpm: tokensPerMinute(usage.outputTokens, durationMs)
-    };
-  } finally {
-    transport.close();
-  }
-}
-function selectEffort(model) {
-  const supported = model.supportedReasoningEfforts?.map((option) => option.reasoningEffort) ?? [];
-  return supported.includes("low") ? "low" : model.defaultReasoningEffort;
-}
-function disableCapabilities(config2) {
-  const names = (value) => Array.isArray(value) ? value : Object.keys(value ?? {});
-  return {
-    features: { apps: false, multi_agent: false, hooks: false },
-    agents: { enabled: false },
-    web_search: "disabled",
-    plugins: Object.fromEntries(names(config2?.plugins).map((name) => [name, { enabled: false }])),
-    apps: {
-      ...Object.fromEntries(names(config2?.apps).map((name) => [name, { enabled: false }])),
-      _default: { enabled: false }
-    },
-    mcp_servers: Object.fromEntries(
-      names(config2?.mcp_servers).map((name) => [name, { enabled: false }])
-    )
-  };
 }
 async function listModels(transport) {
   const models = [];
@@ -37642,82 +37509,70 @@ async function listModels(transport) {
   }
   throw new Error("Codex model catalogue exceeded the pagination limit");
 }
-function prepareWorkspace(dataDir2) {
-  const workspace = resolve(dataDir2, "benchmark-workspace");
-  mkdirSync(workspace, { recursive: true, mode: 448 });
-  return workspace;
-}
-function threadParams(model, cwd, config2) {
+
+// src/stats.js
+var T95 = [
+  12.706,
+  4.303,
+  3.182,
+  2.776,
+  2.571,
+  2.447,
+  2.365,
+  2.306,
+  2.262,
+  2.228,
+  2.201,
+  2.179,
+  2.16,
+  2.145,
+  2.131,
+  2.12,
+  2.11,
+  2.101,
+  2.093,
+  2.086,
+  2.08,
+  2.074,
+  2.069,
+  2.064,
+  2.06,
+  2.056,
+  2.052,
+  2.048,
+  2.045,
+  2.042
+];
+function summarize(values) {
+  const sorted = values.filter(Number.isFinite).toSorted((left, right) => left - right);
+  if (sorted.length === 0) return null;
+  const count = sorted.length;
+  const average = sorted.reduce((sum, value) => sum + value, 0) / count;
+  const median = count % 2 === 1 ? sorted[Math.floor(count / 2)] : (sorted[count / 2 - 1] + sorted[count / 2]) / 2;
+  const variance = count > 1 ? sorted.reduce((sum, value) => sum + (value - average) ** 2, 0) / (count - 1) : 0;
+  const margin = count > 1 ? tCritical(count - 1) * (Math.sqrt(variance) / Math.sqrt(count)) : null;
   return {
-    model,
-    allowProviderModelFallback: false,
-    cwd,
-    approvalPolicy: "never",
-    sandbox: "read-only",
-    ephemeral: true,
-    baseInstructions: "You are a text generator for a throughput benchmark. Never use tools or inspect files.",
-    developerInstructions: "Return only the requested passage.",
-    dynamicTools: [],
-    selectedCapabilityRoots: [],
-    environments: [],
-    runtimeWorkspaceRoots: [cwd],
-    config: config2
+    count,
+    average,
+    median,
+    min: sorted[0],
+    max: sorted.at(-1),
+    ci95Low: margin === null ? null : Math.max(0, average - margin),
+    ci95High: margin === null ? null : average + margin
   };
 }
-async function runBenchmarkTurn(transport, threadId, model, effort, cwd, timeoutMs) {
-  let turnId = null;
-  let usage = null;
-  let finish;
-  let fail;
-  const completion = new Promise((resolve3, reject) => {
-    finish = resolve3;
-    fail = reject;
-  });
-  const timer = setTimeout(() => fail(new Error("Benchmark timed out")), timeoutMs);
-  const unsubscribe = transport.onNotification((message) => {
-    const params = message.params ?? {};
-    if (params.threadId !== threadId) return;
-    if (message.method === "thread/tokenUsage/updated") usage = params.tokenUsage?.total ?? usage;
-    if (message.method === "model/rerouted") fail(new Error(`Codex rerouted to ${params.toModel}`));
-    if (message.method === "turn/started") turnId = params.turn.id;
-    if (message.method === "turn/completed" && (!turnId || params.turn.id === turnId)) {
-      finish({ turn: params.turn, usage });
-    }
-    if (message.method === "transport/error") fail(new Error("Codex app-server stopped"));
-  });
-  try {
-    const response = await transport.request(
-      "turn/start",
-      {
-        threadId,
-        model,
-        effort,
-        cwd,
-        approvalPolicy: "never",
-        sandboxPolicy: { type: "readOnly", networkAccess: false },
-        environments: [],
-        runtimeWorkspaceRoots: [cwd],
-        input: [{ type: "text", text: BENCHMARK_PROMPT, text_elements: [] }]
-      },
-      3e4
-    );
-    turnId = response.turn.id;
-    if (response.turn.status !== "inProgress") finish({ turn: response.turn, usage });
-    return await completion;
-  } finally {
-    clearTimeout(timer);
-    unsubscribe();
-  }
+function tCritical(degreesOfFreedom) {
+  return degreesOfFreedom <= T95.length ? T95[degreesOfFreedom - 1] : 1.96;
 }
 
 // src/store.js
-import { closeSync, mkdirSync as mkdirSync2, openSync } from "node:fs";
+import { closeSync, mkdirSync, openSync } from "node:fs";
 import { dirname } from "node:path";
 import { DatabaseSync } from "node:sqlite";
 var SampleStore = class {
   constructor(path) {
     if (path !== ":memory:") {
-      mkdirSync2(dirname(path), { recursive: true, mode: 448 });
+      mkdirSync(dirname(path), { recursive: true, mode: 448 });
       closeSync(openSync(path, "a", 384));
     }
     this.database = new DatabaseSync(path, { timeout: 5e3 });
@@ -37730,14 +37585,40 @@ var SampleStore = class {
       duration_ms INTEGER NOT NULL CHECK (duration_ms > 0),
       output_tokens INTEGER NOT NULL CHECK (output_tokens > 0),
       reasoning_output_tokens INTEGER NOT NULL CHECK (reasoning_output_tokens >= 0),
-      tpm REAL NOT NULL CHECK (tpm > 0)
+      tpm REAL NOT NULL CHECK (tpm > 0),
+      source TEXT NOT NULL DEFAULT 'observed',
+      service_tier TEXT NOT NULL DEFAULT 'default',
+      session_id TEXT,
+      turn_id TEXT,
+      turn_duration_ms INTEGER
+    );
+    CREATE TABLE IF NOT EXISTS turn_offsets (
+      session_id TEXT NOT NULL,
+      turn_id TEXT NOT NULL,
+      transcript_path TEXT NOT NULL,
+      start_offset INTEGER NOT NULL CHECK (start_offset >= 0),
+      model TEXT NOT NULL,
+      created_at TEXT NOT NULL,
+      PRIMARY KEY (session_id, turn_id)
+    );
+    CREATE TABLE IF NOT EXISTS collector_status (
+      id INTEGER PRIMARY KEY CHECK (id = 1),
+      state TEXT NOT NULL,
+      message TEXT NOT NULL,
+      last_attempt_at TEXT NOT NULL,
+      last_sample_at TEXT
     )`);
+    this.migrateSamples();
+    this.database.exec(`CREATE UNIQUE INDEX IF NOT EXISTS observed_turn
+      ON samples(session_id, turn_id)
+      WHERE source = 'observed' AND turn_id IS NOT NULL`);
   }
   add(sample) {
-    this.database.prepare(`INSERT INTO samples (
+    const result = this.database.prepare(`INSERT OR IGNORE INTO samples (
         model, display_name, effort, measured_at, duration_ms,
-        output_tokens, reasoning_output_tokens, tpm
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`).run(
+        output_tokens, reasoning_output_tokens, tpm, source, service_tier,
+        session_id, turn_id, turn_duration_ms
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`).run(
       sample.model,
       sample.displayName,
       sample.effort,
@@ -37745,10 +37626,16 @@ var SampleStore = class {
       sample.durationMs,
       sample.outputTokens,
       sample.reasoningOutputTokens,
-      sample.tpm
+      sample.tpm,
+      sample.source ?? "observed",
+      sample.serviceTier ?? "default",
+      sample.sessionId ?? null,
+      sample.turnId ?? null,
+      sample.turnDurationMs ?? null
     );
+    return result.changes > 0;
   }
-  list(limit = 2e3) {
+  list(limit = 2e3, source = "observed") {
     return this.database.prepare(`SELECT
         model,
         display_name AS displayName,
@@ -37757,13 +37644,69 @@ var SampleStore = class {
         duration_ms AS durationMs,
         output_tokens AS outputTokens,
         reasoning_output_tokens AS reasoningOutputTokens,
-        tpm
+        tpm,
+        source,
+        service_tier AS serviceTier,
+        session_id AS sessionId,
+        turn_id AS turnId,
+        turn_duration_ms AS turnDurationMs
       FROM samples
+      WHERE source = ?
       ORDER BY measured_at DESC
-      LIMIT ?`).all(limit);
+      LIMIT ?`).all(source, limit);
+  }
+  markTurn(turn) {
+    this.database.prepare(`INSERT OR REPLACE INTO turn_offsets (
+        session_id, turn_id, transcript_path, start_offset, model, created_at
+      ) VALUES (?, ?, ?, ?, ?, ?)`).run(
+      turn.sessionId,
+      turn.turnId,
+      turn.transcriptPath,
+      turn.startOffset,
+      turn.model,
+      turn.createdAt
+    );
+  }
+  getTurn(sessionId, turnId) {
+    return this.database.prepare(`SELECT
+        transcript_path AS transcriptPath,
+        start_offset AS startOffset,
+        model
+      FROM turn_offsets
+      WHERE session_id = ? AND turn_id = ?`).get(sessionId, turnId);
+  }
+  setCollectorStatus(state, message, lastSampleAt = null) {
+    const previous = this.getCollectorStatus();
+    this.database.prepare(`INSERT OR REPLACE INTO collector_status (
+        id, state, message, last_attempt_at, last_sample_at
+      ) VALUES (1, ?, ?, ?, ?)`).run(state, message, (/* @__PURE__ */ new Date()).toISOString(), lastSampleAt ?? previous?.lastSampleAt ?? null);
+  }
+  getCollectorStatus() {
+    return this.database.prepare(`SELECT
+        state,
+        message,
+        last_attempt_at AS lastAttemptAt,
+        last_sample_at AS lastSampleAt
+      FROM collector_status
+      WHERE id = 1`).get();
   }
   close() {
     if (this.database.isOpen) this.database.close();
+  }
+  migrateSamples() {
+    const columns = new Set(
+      this.database.prepare("PRAGMA table_info(samples)").all().map((column) => column.name)
+    );
+    const additions = {
+      source: "TEXT NOT NULL DEFAULT 'benchmark'",
+      service_tier: "TEXT NOT NULL DEFAULT 'default'",
+      session_id: "TEXT",
+      turn_id: "TEXT",
+      turn_duration_ms: "INTEGER"
+    };
+    for (const [name, definition] of Object.entries(additions)) {
+      if (!columns.has(name)) this.database.exec(`ALTER TABLE samples ADD COLUMN ${name} ${definition}`);
+    }
   }
 };
 
@@ -37772,7 +37715,7 @@ var PANEL_URI = "ui://tpm-observatory/panel.html";
 var dataDir = resolve2(process.env.PLUGIN_DATA || ".data");
 var store = new SampleStore(join(dataDir, "samples.sqlite"));
 var panelHtml = await readFile(new URL("./panel.html", import.meta.url), "utf8");
-var server = new McpServer({ name: "tpm-observatory", version: "0.1.0" });
+var server = new McpServer({ name: "tpm-observatory", version: "0.2.0" });
 var cachedCatalogue = null;
 server.registerResource(
   "tpm-observatory-panel",
@@ -37811,27 +37754,6 @@ K3(
   },
   async () => dashboardReply("TPM Observatory refreshed.", true)
 );
-K3(
-  server,
-  "tpm_benchmark",
-  {
-    title: "Benchmark Codex model",
-    description: "Run one isolated throughput sample. This consumes normal Codex allowance.",
-    inputSchema: { model: external_exports.string().min(1) },
-    _meta: { ui: { visibility: ["app"] } }
-  },
-  async ({ model }) => {
-    try {
-      const sample = await benchmarkModel(model, dataDir);
-      store.add(sample);
-      return dashboardReply(`Measured ${sample.displayName} at ${Math.round(sample.tpm)} TPM.`, true);
-    } catch (error62) {
-      const message = safeMessage(error62);
-      const reply = await dashboardReply(`Benchmark failed: ${message}`, true);
-      return { ...reply, isError: true };
-    }
-  }
-);
 async function dashboardReply(message, forceCatalogue = false) {
   const dashboard = await buildDashboard(forceCatalogue);
   return { content: [{ type: "text", text: message }], structuredContent: { dashboard, message } };
@@ -37847,37 +37769,65 @@ async function buildDashboard(forceCatalogue) {
   } catch (error62) {
     catalogueError = safeMessage(error62);
   }
-  const samples = store.list();
+  const samples = store.list(2e3, "observed");
   const catalogue = new Map(models.map((model) => [model.model, model]));
-  const ids = /* @__PURE__ */ new Set([...catalogue.keys(), ...samples.map((sample) => sample.model)]);
-  const rows = [...ids].map((id) => modelRow(id, catalogue.get(id), samples));
+  const series = new Set(samples.map((sample) => seriesId(sample.model, sample.serviceTier)));
+  for (const model of models) {
+    series.add(seriesId(model.model, "default"));
+    for (const tier of model.serviceTiers ?? []) series.add(seriesId(model.model, tier.id));
+  }
+  const rows = [...series].map((id) => modelRow(id, catalogue, samples));
   const measured = rows.filter((row) => row.stats);
   return {
     generatedAt: (/* @__PURE__ */ new Date()).toISOString(),
     catalogueError,
-    measurement: "Output tokens, including reasoning output, per completed turn minute.",
+    collector: store.getCollectorStatus() ?? {
+      state: "waiting",
+      message: "Waiting for the next completed Codex turn.",
+      lastAttemptAt: null,
+      lastSampleAt: null
+    },
+    measurement: "Output tokens, including reasoning output, per active model-generation minute.",
     runCount: samples.length,
-    bestModel: measured.toSorted((a, b) => b.stats.average - a.stats.average)[0]?.model ?? null,
-    models: rows.toSorted((a, b) => Number(b.available) - Number(a.available))
+    bestSeries: measured.toSorted((a, b) => b.stats.average - a.stats.average)[0]?.seriesId ?? null,
+    models: rows.toSorted(compareRows)
   };
 }
-function modelRow(id, model, allSamples) {
-  const samples = allSamples.filter((sample) => sample.model === id).toReversed();
+function modelRow(id, catalogue, allSamples) {
+  const [modelId, serviceTier] = id.split("::");
+  const model = catalogue.get(modelId);
+  const samples = allSamples.filter((sample) => sample.model === modelId && sample.serviceTier === serviceTier).toReversed();
   const stats = summarize(samples.map((sample) => sample.tpm));
   return {
-    model: id,
-    displayName: model?.displayName ?? samples.at(-1)?.displayName ?? id,
+    seriesId: id,
+    model: modelId,
+    serviceTier,
+    tierName: tierName(model, serviceTier),
+    displayName: model?.displayName ?? samples.at(-1)?.displayName ?? modelId,
     available: Boolean(model),
-    effort: model ? preferredEffort(model) : samples.at(-1)?.effort ?? null,
+    effort: samples.at(-1)?.effort ?? model?.defaultReasoningEffort ?? null,
     isDefault: Boolean(model?.isDefault),
     stats,
     latest: samples.at(-1) ?? null,
     samples: samples.slice(-80)
   };
 }
-function preferredEffort(model) {
-  const supported = model.supportedReasoningEfforts?.map((option) => option.reasoningEffort) ?? [];
-  return supported.includes("low") ? "low" : model.defaultReasoningEffort;
+function tierName(model, serviceTier) {
+  if (serviceTier === "default") return "Standard";
+  const catalogName = model?.serviceTiers?.find((tier) => tier.id === serviceTier)?.name;
+  if (catalogName) return catalogName;
+  if (/ultra.?fast/i.test(serviceTier)) return "Ultra Fast";
+  if (/priority|fast/i.test(serviceTier)) return "Fast";
+  return serviceTier.replaceAll(/[_-]+/g, " ").replaceAll(/\b\w/g, (letter) => letter.toUpperCase());
+}
+function seriesId(model, serviceTier) {
+  return `${model}::${serviceTier || "default"}`;
+}
+function compareRows(left, right) {
+  const modelOrder = left.displayName.localeCompare(right.displayName);
+  if (modelOrder !== 0) return modelOrder;
+  const order = { Standard: 0, Fast: 1, "Ultra Fast": 2 };
+  return (order[left.tierName] ?? 10) - (order[right.tierName] ?? 10);
 }
 function safeMessage(error62) {
   return (error62 instanceof Error ? error62.message : "Unknown error").slice(0, 240);

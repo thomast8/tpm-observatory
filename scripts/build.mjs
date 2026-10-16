@@ -10,6 +10,14 @@ await build({
   target: 'node22',
   outfile: new URL('../plugin/dist/server.js', import.meta.url).pathname,
 });
+await build({
+  entryPoints: ['src/collector.js'],
+  bundle: true,
+  platform: 'node',
+  format: 'esm',
+  target: 'node22',
+  outfile: new URL('../plugin/dist/collector.js', import.meta.url).pathname,
+});
 await copyFile(
   new URL('../src/panel.html', import.meta.url),
   new URL('../plugin/dist/panel.html', import.meta.url),
