@@ -214,7 +214,7 @@
             <div class="latest"><div class="stat-label">Latest · ${unitLabel()}</div><div class="stat-value">${metricNumber(model.latest?.tpm)}</div></div>
             <div class="confidence">95% CI ${stats.ci95Low == null ? '· needs 2 samples' : `${metricNumber(stats.ci95Low)}–${metricNumber(stats.ci95High)}`} · Median ${metricNumber(stats.median)}</div>
           </div>
-          <div class="range-cell"><div class="stat-label">Observed range · ${unitLabel()}</div><div class="range" aria-hidden="true"><span class="range-line"></span><span class="range-fill" style="left:${low}%;width:${Math.max(high - low, 2)}%;background:${color}"></span><span class="range-point" style="left:${average}%;background:${color}"></span></div><div class="range-labels"><span>Min ${metricNumber(stats?.min)}</span><span>Max ${metricNumber(stats?.max)}</span></div></div>
+          <div class="range-cell"><div class="stat-label">Observed range · ${unitLabel()}</div><div class="range" aria-hidden="true"><span class="range-line"></span><span class="range-fill" style="left:${low}%;width:${stats.max > stats.min ? high - low : 0}%;background:${color}"></span><span class="range-point" style="left:${average}%;background:${color}"></span></div><div class="range-labels"><span>Min ${metricNumber(stats?.min)}</span><span>Max ${metricNumber(stats?.max)}</span></div></div>
         </article>`;
       }
 
