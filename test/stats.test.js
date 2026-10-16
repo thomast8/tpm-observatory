@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { summarize, tokensPerMinute } from '../src/stats.js';
+import { summarize, summarizeEfforts, tokensPerMinute } from '../src/stats.js';
 
 test('computes observed tokens per minute', () => {
   assert.equal(tokensPerMinute(120, 30_000), 240);
@@ -29,6 +29,18 @@ test('handles empty and single-value samples', () => {
     max: 42,
     ci95Low: null,
     ci95High: null,
+  });
+});
+
+test('pools reasoning efforts without splitting the throughput series', () => {
+  assert.deepEqual(summarizeEfforts([]), { efforts: [], label: 'No observations' });
+  assert.deepEqual(summarizeEfforts(['high', 'high']), {
+    efforts: ['high'],
+    label: 'high effort',
+  });
+  assert.deepEqual(summarizeEfforts(['low', 'high', 'low']), {
+    efforts: ['low', 'high'],
+    label: 'Mixed effort',
   });
 });
 

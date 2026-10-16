@@ -4,14 +4,14 @@ import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import { registerAppTool } from '@modelcontextprotocol/ext-apps/server';
 import { discoverModels } from './codex.js';
-import { summarize } from './stats.js';
+import { summarize, summarizeEfforts } from './stats.js';
 import { SampleStore } from './store.js';
 
 const PANEL_URI = 'ui://tpm-observatory/panel.html';
 const dataDir = resolve(process.env.PLUGIN_DATA || '.data');
 const store = new SampleStore(join(dataDir, 'samples.sqlite'));
 const panelHtml = await readFile(new URL('./panel.html', import.meta.url), 'utf8');
-const server = new McpServer({ name: 'tpm-observatory', version: '0.2.2' });
+const server = new McpServer({ name: 'tpm-observatory', version: '0.2.3' });
 let cachedCatalogue = null;
 
 server.registerResource(
@@ -102,6 +102,7 @@ function modelRow(id, catalogue, allSamples) {
     .filter((sample) => sample.model === modelId && sample.serviceTier === serviceTier)
     .toReversed();
   const stats = summarize(samples.map((sample) => sample.tpm));
+  const effortSummary = summarizeEfforts(samples.map((sample) => sample.effort));
   return {
     seriesId: id,
     model: modelId,
@@ -109,7 +110,8 @@ function modelRow(id, catalogue, allSamples) {
     tierName: tierName(model, serviceTier),
     displayName: model?.displayName ?? samples.at(-1)?.displayName ?? modelId,
     available: Boolean(model),
-    effort: samples.at(-1)?.effort ?? model?.defaultReasoningEffort ?? null,
+    efforts: effortSummary.efforts,
+    effortLabel: effortSummary.label,
     isDefault: Boolean(model?.isDefault),
     stats,
     latest: samples.at(-1) ?? null,

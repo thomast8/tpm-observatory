@@ -67,6 +67,19 @@ export function summarize(values) {
   };
 }
 
+export function summarizeEfforts(values) {
+  const efforts = [...new Set(values.filter((value) => typeof value === 'string' && value.trim()))];
+  return {
+    efforts,
+    label:
+      efforts.length === 0
+        ? 'No observations'
+        : efforts.length === 1
+          ? `${efforts[0]} effort`
+          : 'Mixed effort',
+  };
+}
+
 function tCritical(degreesOfFreedom) {
   return degreesOfFreedom <= T95.length ? T95[degreesOfFreedom - 1] : 1.96;
 }

@@ -2,7 +2,7 @@
 
 A local Codex plugin that discovers the models currently available to your account and passively measures their observed output tokens per minute over time.
 
-The panel reports each model and speed tier's latest result, average, 95% confidence interval for the mean, minimum, maximum, and sample count. Completed main-chat turns are captured automatically by bundled hooks. No benchmark prompt or extra model call is made.
+The panel reports each model and speed tier's latest result, average, 95% confidence interval for the mean, minimum, maximum, and sample count. Reasoning efforts are pooled within that model and speed-tier series. Completed main-chat turns are captured automatically by bundled hooks. No benchmark prompt or extra model call is made.
 
 ## Measurement
 
