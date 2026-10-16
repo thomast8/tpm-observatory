@@ -11,7 +11,7 @@ const PANEL_URI = 'ui://tpm-observatory/panel.html';
 const dataDir = resolve(process.env.PLUGIN_DATA || '.data');
 const store = new SampleStore(join(dataDir, 'samples.sqlite'));
 const panelHtml = await readFile(new URL('./panel.html', import.meta.url), 'utf8');
-const server = new McpServer({ name: 'tpm-observatory', version: '0.2.0' });
+const server = new McpServer({ name: 'tpm-observatory', version: '0.2.1' });
 let cachedCatalogue = null;
 
 server.registerResource(
@@ -47,23 +47,23 @@ registerAppTool(
   'tpm_refresh',
   {
     title: 'Refresh TPM Observatory',
-    description: 'Refresh the live Codex model catalogue and saved measurements.',
+    description: 'Refresh saved measurements and the cached Codex model catalogue.',
     inputSchema: {},
     _meta: { ui: { visibility: ['app'] } },
   },
-  async () => dashboardReply('TPM Observatory refreshed.', true),
+  async () => dashboardReply('TPM Observatory refreshed.'),
 );
 
-async function dashboardReply(message, forceCatalogue = false) {
-  const dashboard = await buildDashboard(forceCatalogue);
+async function dashboardReply(message) {
+  const dashboard = await buildDashboard();
   return { content: [{ type: 'text', text: message }], structuredContent: { dashboard, message } };
 }
 
-async function buildDashboard(forceCatalogue) {
+async function buildDashboard() {
   let models = [];
   let catalogueError = null;
   try {
-    if (forceCatalogue || !cachedCatalogue || Date.now() - cachedCatalogue.at > 60_000) {
+    if (!cachedCatalogue || Date.now() - cachedCatalogue.at > 60_000) {
       cachedCatalogue = { at: Date.now(), models: await discoverModels(dataDir) };
     }
     models = cachedCatalogue.models;

@@ -37389,7 +37389,7 @@ var CodexTransport = class _CodexTransport {
     const transport = new _CodexTransport(child);
     try {
       await transport.request("initialize", {
-        clientInfo: { name: "tpm-observatory", title: "TPM Observatory", version: "0.2.0" },
+        clientInfo: { name: "tpm-observatory", title: "TPM Observatory", version: "0.2.1" },
         capabilities: { experimentalApi: true, requestAttestation: false }
       });
       transport.notify("initialized");
@@ -37715,7 +37715,7 @@ var PANEL_URI = "ui://tpm-observatory/panel.html";
 var dataDir = resolve2(process.env.PLUGIN_DATA || ".data");
 var store = new SampleStore(join(dataDir, "samples.sqlite"));
 var panelHtml = await readFile(new URL("./panel.html", import.meta.url), "utf8");
-var server = new McpServer({ name: "tpm-observatory", version: "0.2.0" });
+var server = new McpServer({ name: "tpm-observatory", version: "0.2.1" });
 var cachedCatalogue = null;
 server.registerResource(
   "tpm-observatory-panel",
@@ -37748,21 +37748,21 @@ K3(
   "tpm_refresh",
   {
     title: "Refresh TPM Observatory",
-    description: "Refresh the live Codex model catalogue and saved measurements.",
+    description: "Refresh saved measurements and the cached Codex model catalogue.",
     inputSchema: {},
     _meta: { ui: { visibility: ["app"] } }
   },
-  async () => dashboardReply("TPM Observatory refreshed.", true)
+  async () => dashboardReply("TPM Observatory refreshed.")
 );
-async function dashboardReply(message, forceCatalogue = false) {
-  const dashboard = await buildDashboard(forceCatalogue);
+async function dashboardReply(message) {
+  const dashboard = await buildDashboard();
   return { content: [{ type: "text", text: message }], structuredContent: { dashboard, message } };
 }
-async function buildDashboard(forceCatalogue) {
+async function buildDashboard() {
   let models = [];
   let catalogueError = null;
   try {
-    if (forceCatalogue || !cachedCatalogue || Date.now() - cachedCatalogue.at > 6e4) {
+    if (!cachedCatalogue || Date.now() - cachedCatalogue.at > 6e4) {
       cachedCatalogue = { at: Date.now(), models: await discoverModels(dataDir) };
     }
     models = cachedCatalogue.models;

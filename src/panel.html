@@ -75,6 +75,9 @@
       .button:disabled { cursor: wait; opacity: .48; }
       .collector-state { display: inline-flex; align-items: center; gap: 8px; min-height: 40px; padding: 9px 12px; border: 1px solid color-mix(in srgb, var(--green) 28%, var(--line)); border-radius: 12px; background: color-mix(in srgb, var(--green) 8%, var(--surface)); color: var(--muted); font-size: 12px; font-weight: 650; }
       .collector-state .dot { background: var(--green); box-shadow: 0 0 0 5px color-mix(in srgb, var(--green) 15%, transparent); }
+      .unit-toggle { display: inline-flex; min-height: 40px; padding: 3px; border: 1px solid var(--line); border-radius: 12px; background: var(--surface); }
+      .unit-button { min-width: 46px; border: 0; border-radius: 9px; background: transparent; color: var(--muted); cursor: pointer; font-size: 11px; font-weight: 750; }
+      .unit-button.active { background: var(--ink); color: var(--bg); box-shadow: 0 2px 8px rgba(20, 18, 28, .12); }
 
       .notice { display: flex; gap: 10px; align-items: center; margin: -8px 0 18px; padding: 11px 13px; border: 1px solid color-mix(in srgb, var(--orange) 35%, var(--line)); border-radius: 12px; background: color-mix(in srgb, var(--orange) 8%, var(--surface)); color: var(--muted); }
       .notice strong { color: var(--ink); }
@@ -157,6 +160,9 @@
       const app = document.querySelector('#app');
       const toast = document.querySelector('#toast');
       let dashboard = null;
+      let unit = 'minute';
+      let refreshInFlight = false;
+      let pollTimer = null;
       let rpcId = 0;
       let toastTimer;
       const pending = new Map();
@@ -165,6 +171,10 @@
         .replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;')
         .replaceAll('"', '&quot;').replaceAll("'", '&#039;');
       const number = (value) => value == null ? '—' : Math.round(value).toLocaleString();
+      const converted = (tpm) => unit === 'second' ? tpm / 60 : tpm;
+      const metricNumber = (tpm) => tpm == null ? '—' : converted(tpm).toLocaleString(undefined, { maximumFractionDigits: unit === 'second' ? 1 : 0 });
+      const axisNumber = (value) => value.toLocaleString(undefined, { maximumFractionDigits: unit === 'second' ? 1 : 0 });
+      const unitLabel = () => unit === 'second' ? 'TPS' : 'TPM';
       const shortDate = (value) => value ? new Intl.DateTimeFormat(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }).format(new Date(value)) : 'No samples yet';
 
       function showToast(message) {
@@ -191,13 +201,14 @@
               <p class="subtitle">Observed output throughput for the Codex models available to you, measured consistently over time.</p>
             </div>
             <div class="actions">
-              <span class="collector-state"><span class="dot"></span>${escapeHtml(dashboard.collector.state === 'active' ? 'Collecting automatically' : 'Background collector ready')}</span>
+              <div class="unit-toggle" role="group" aria-label="Throughput unit"><button class="unit-button ${unit === 'minute' ? 'active' : ''}" data-action="unit" data-unit="minute" aria-pressed="${unit === 'minute'}">TPM</button><button class="unit-button ${unit === 'second' ? 'active' : ''}" data-action="unit" data-unit="second" aria-pressed="${unit === 'second'}">TPS</button></div>
+              <span class="collector-state"><span class="dot"></span>${escapeHtml(dashboard.collector.state === 'active' ? 'Live · 5s' : 'Background collector ready')}</span>
               <button class="button" data-action="refresh">Refresh</button>
             </div>
           </header>
           ${dashboard.catalogueError ? `<div class="notice"><span class="dot"></span><span><strong>Live catalogue unavailable.</strong> Showing saved history. ${escapeHtml(dashboard.catalogueError)}</span></div>` : ''}
           <section class="summary" aria-label="Summary">
-            <article class="metric hero"><div class="metric-label">Fastest average</div><div class="metric-value text">${escapeHtml(best?.displayName ?? 'Awaiting data')}</div><div class="metric-detail">${best ? `${number(best.stats.average)} TPM · ${escapeHtml(best.tierName)}` : 'Finish a Codex turn to establish a baseline'}</div></article>
+            <article class="metric hero"><div class="metric-label">Fastest average</div><div class="metric-value text">${escapeHtml(best?.displayName ?? 'Awaiting data')}</div><div class="metric-detail">${best ? `${metricNumber(best.stats.average)} ${unitLabel()} · ${escapeHtml(best.tierName)}` : 'Finish a Codex turn to establish a baseline'}</div></article>
             <article class="metric"><div class="metric-label">Available models</div><div class="metric-value">${availableCount}</div><div class="metric-detail">Speed tiers stay separate</div></article>
             <article class="metric"><div class="metric-label">Observed turns</div><div class="metric-value">${dashboard.runCount}</div><div class="metric-detail">${latest ? `Latest ${shortDate(latest.measuredAt)}` : escapeHtml(dashboard.collector.message)}</div></article>
           </section>
@@ -209,7 +220,7 @@
             <div class="panel-head"><div><h2 class="panel-title">Model comparison</h2><p class="panel-copy">95% confidence interval estimates the mean. It appears after two samples.</p></div></div>
             <div class="models">${dashboard.models.map((model, index) => modelRow(model, index)).join('')}</div>
           </section>
-          <footer class="footnote"><span>${escapeHtml(dashboard.measurement)}</span><span>No extra model calls. Tool and command wait time is excluded.</span></footer>`;
+          <footer class="footnote"><span>${escapeHtml(unit === 'second' ? dashboard.measurement.replace('minute', 'second') : dashboard.measurement)}</span><span>No extra model calls. Tool and command wait time is excluded.</span></footer>`;
       }
 
       function modelRow(model, index) {
@@ -221,9 +232,9 @@
         const color = palette[index % palette.length];
         return `<article class="model-row">
           <div class="model-name"><strong>${escapeHtml(model.displayName)}</strong><div class="model-meta"><span class="status ${model.available ? '' : 'off'}"></span><span class="tier tier-${model.tierName.toLowerCase().replaceAll(' ', '-')}">${escapeHtml(model.tierName)}</span>${model.available ? `${escapeHtml(model.effort ?? 'default')} effort${model.isDefault ? ' · default model' : ''}` : 'History only'}</div></div>
-          <div class="latest"><div class="stat-label">Latest</div><div class="stat-value" style="color:${color}">${number(model.latest?.tpm)} TPM</div></div>
-          <div class="ci"><div class="stat-label">Average · 95% CI</div><div class="stat-value">${number(stats?.average)} ${stats?.ci95Low == null ? '' : `<span style="color:var(--muted);font-size:11px;font-weight:500">(${number(stats.ci95Low)}–${number(stats.ci95High)})</span>`}</div></div>
-          <div class="range-cell"><div class="stat-label">Min–max · n=${stats?.count ?? 0}</div><div class="range"><span class="range-line"></span>${stats ? `<span class="range-fill" style="left:${low}%;width:${Math.max(high - low, 2)}%;background:${color}"></span><span class="range-point" style="left:${average}%;background:${color}"></span>` : ''}</div><div class="range-labels"><span>${number(stats?.min)}</span><span>${number(stats?.max)}</span></div></div>
+          <div class="latest"><div class="stat-label">Latest · ${unitLabel()}</div><div class="stat-value" style="color:${color}">${metricNumber(model.latest?.tpm)} ${unitLabel()}</div></div>
+          <div class="ci"><div class="stat-label">Average · 95% CI · ${unitLabel()}</div><div class="stat-value">${metricNumber(stats?.average)} ${stats?.ci95Low == null ? '' : `<span style="color:var(--muted);font-size:11px;font-weight:500">(${metricNumber(stats.ci95Low)}–${metricNumber(stats.ci95High)})</span>`}</div></div>
+          <div class="range-cell"><div class="stat-label">Min–max · n=${stats?.count ?? 0}</div><div class="range"><span class="range-line"></span>${stats ? `<span class="range-fill" style="left:${low}%;width:${Math.max(high - low, 2)}%;background:${color}"></span><span class="range-point" style="left:${average}%;background:${color}"></span>` : ''}</div><div class="range-labels"><span>${metricNumber(stats?.min)}</span><span>${metricNumber(stats?.max)}</span></div></div>
         </article>`;
       }
 
@@ -232,13 +243,13 @@
         const points = models.flatMap((model) => model.samples.map((sample) => ({ ...sample, model: model.model })));
         const start = Math.min(...points.map((point) => Date.parse(point.measuredAt)));
         const end = Math.max(...points.map((point) => Date.parse(point.measuredAt)));
-        const max = Math.max(...points.map((point) => point.tpm), 1) * 1.12;
+        const max = Math.max(...points.map((point) => converted(point.tpm)), 1) * 1.12;
         const width = 900, height = 250, left = 48, right = 18, top = 18, bottom = 34;
         const x = (date) => left + ((Date.parse(date) - start) / Math.max(end - start, 1)) * (width - left - right);
-        const y = (tpm) => top + (1 - tpm / max) * (height - top - bottom);
+        const y = (tpm) => top + (1 - converted(tpm) / max) * (height - top - bottom);
         const grids = [0, .25, .5, .75, 1].map((ratio) => {
           const py = top + ratio * (height - top - bottom);
-          return `<line class="gridline" x1="${left}" y1="${py}" x2="${width - right}" y2="${py}"/><text class="axis-label" x="${left - 8}" y="${py + 3}" text-anchor="end">${number(max * (1 - ratio))}</text>`;
+          return `<line class="gridline" x1="${left}" y1="${py}" x2="${width - right}" y2="${py}"/><text class="axis-label" x="${left - 8}" y="${py + 3}" text-anchor="end">${axisNumber(max * (1 - ratio))}</text>`;
         }).join('');
         const lines = models.map((model, index) => {
           const color = palette[index % palette.length];
@@ -247,7 +258,7 @@
           return `<path d="${path}" fill="none" stroke="${color}" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>${circles}`;
         }).join('');
         const legend = models.map((model, index) => `<span class="legend-item"><span class="legend-swatch" style="background:${palette[index % palette.length]}"></span>${escapeHtml(model.displayName)} · ${escapeHtml(model.tierName)}</span>`).join('');
-        return `<div class="chart-wrap"><svg class="chart" viewBox="0 0 ${width} ${height}" role="img" aria-label="Model throughput over time">${grids}${lines}<text class="axis-label" x="${left}" y="${height - 10}">${shortDate(new Date(start).toISOString())}</text><text class="axis-label" x="${width - right}" y="${height - 10}" text-anchor="end">${shortDate(new Date(end).toISOString())}</text></svg></div><div class="legend">${legend}</div>`;
+        return `<div class="chart-wrap"><svg class="chart" viewBox="0 0 ${width} ${height}" role="img" aria-label="Model throughput over time in ${unitLabel()}">${grids}${lines}<text class="axis-label" x="${left}" y="${height - 10}">${shortDate(new Date(start).toISOString())}</text><text class="axis-label" x="${width - right}" y="${height - 10}" text-anchor="end">${shortDate(new Date(end).toISOString())}</text></svg></div><div class="legend">${legend}</div>`;
       }
 
       function applyResponse(response) {
@@ -255,7 +266,7 @@
         if (value?.structuredContent?.dashboard) {
           dashboard = value.structuredContent.dashboard;
           render();
-          if (value.structuredContent.message) showToast(value.structuredContent.message);
+          if (value.structuredContent.message && value.structuredContent.message !== 'TPM Observatory refreshed.') showToast(value.structuredContent.message);
         }
         return value;
       }
@@ -269,6 +280,23 @@
         });
       }
       async function callTool(name, args = {}) { return applyResponse(await rpcRequest('tools/call', { name, arguments: args })); }
+
+      async function refreshDashboard(silent = true) {
+        if (refreshInFlight || document.visibilityState !== 'visible') return;
+        refreshInFlight = true;
+        try {
+          await callTool('tpm_refresh');
+        } catch (error) {
+          if (!silent) showToast(error instanceof Error ? error.message : 'Refresh failed');
+        } finally {
+          refreshInFlight = false;
+        }
+      }
+
+      function startPolling() {
+        if (pollTimer) return;
+        pollTimer = setInterval(() => void refreshDashboard(true), 5_000);
+      }
 
       window.addEventListener('message', (event) => {
         if (event.source !== window.parent || event.data?.jsonrpc !== '2.0') return;
@@ -287,9 +315,12 @@
         if (!button) return;
         const action = button.dataset.action;
         try {
-          if (action === 'refresh') {
+          if (action === 'unit') {
+            unit = button.dataset.unit === 'second' ? 'second' : 'minute';
+            render();
+          } else if (action === 'refresh') {
             button.disabled = true;
-            await callTool('tpm_refresh');
+            await refreshDashboard(false);
           }
         } catch (error) {
           showToast(error instanceof Error ? error.message : 'Action failed');
@@ -301,13 +332,18 @@
       async function initialize() {
         render();
         try {
-          await rpcRequest('ui/initialize', { appInfo: { name: 'tpm-observatory', version: '0.2.0' }, appCapabilities: {}, protocolVersion: '2026-01-26' });
+          await rpcRequest('ui/initialize', { appInfo: { name: 'tpm-observatory', version: '0.2.1' }, appCapabilities: {}, protocolVersion: '2026-01-26' });
           rpcNotify('ui/notifications/initialized', {});
-          setTimeout(() => { if (!dashboard) callTool('tpm_refresh').catch((error) => showToast(error.message)); }, 400);
+          startPolling();
+          setTimeout(() => { if (!dashboard) void refreshDashboard(false); }, 400);
         } catch (error) {
           showToast(`Could not connect to Codex: ${error.message}`);
         }
       }
+      document.addEventListener('visibilitychange', () => {
+        if (document.visibilityState === 'visible') void refreshDashboard(true);
+      });
+      window.addEventListener('pagehide', () => clearInterval(pollTimer), { once: true });
       initialize();
     </script>
   </body>
