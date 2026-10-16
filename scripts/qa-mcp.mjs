@@ -11,15 +11,16 @@ const transport = new StdioClientTransport({
   env: { ...process.env, PLUGIN_DATA: dataDir },
   stderr: 'pipe',
 });
-const client = new Client({ name: 'tpm-observatory-qa', version: '0.3.0' });
+const client = new Client({ name: 'tpm-observatory-qa', version: '0.3.1' });
 
 try {
   await client.connect(transport);
   const tools = await client.listTools();
   const opened = await client.callTool({ name: 'tpm_open', arguments: {} });
   const resources = await client.listResources();
+  const panelUri = tools.tools.find((tool) => tool.name === 'tpm_open')?._meta?.ui?.resourceUri;
   const panel = resources.resources.find(
-    (resource) => resource.uri === 'ui://tpm-observatory/panel.html',
+    (resource) => resource.uri === panelUri,
   );
   if (!panel) throw new Error('Panel resource was not registered');
   const resource = await client.readResource({ uri: panel.uri });
@@ -37,6 +38,7 @@ try {
           .filter((model) => model.stats)
           .map((model) => `${model.model}:${model.tierName}`),
         panelMimeType: resource.contents[0]?.mimeType,
+        panelUri,
       },
       null,
       2,

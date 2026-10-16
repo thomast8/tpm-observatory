@@ -37389,7 +37389,7 @@ var CodexTransport = class _CodexTransport {
     const transport = new _CodexTransport(child);
     try {
       await transport.request("initialize", {
-        clientInfo: { name: "tpm-observatory", title: "TPM Observatory", version: "0.3.0" },
+        clientInfo: { name: "tpm-observatory", title: "TPM Observatory", version: "0.3.1" },
         capabilities: { experimentalApi: true, requestAttestation: false }
       });
       transport.notify("initialized");
@@ -37710,12 +37710,40 @@ var SampleStore = class {
   }
 };
 
+// package.json
+var package_default = {
+  name: "tpm-observatory",
+  version: "0.3.1",
+  private: true,
+  type: "module",
+  engines: {
+    node: ">=22.5.0"
+  },
+  scripts: {
+    build: "node scripts/build.mjs",
+    lint: "node --check src/codex.js && node --check src/collector.js && node --check src/server.js && node --check src/stats.js && node --check src/store.js && node --check src/telemetry.js && node --check scripts/build.mjs && node --check scripts/qa-mcp.mjs",
+    "qa:mcp": "node scripts/qa-mcp.mjs",
+    test: "node --test --experimental-test-coverage --test-coverage-include=src/stats.js --test-coverage-include=src/store.js --test-coverage-include=src/telemetry.js --test-coverage-lines=90 --test-coverage-functions=90 --test-coverage-branches=85",
+    check: "npm run lint && npm test && npm run build"
+  },
+  dependencies: {
+    "@modelcontextprotocol/ext-apps": "1.7.5",
+    "@modelcontextprotocol/sdk": "1.32.0"
+  },
+  devDependencies: {
+    esbuild: "0.28.2"
+  },
+  allowScripts: {
+    "esbuild@0.28.2": true
+  }
+};
+
 // src/server.js
-var PANEL_URI = "ui://tpm-observatory/panel.html";
+var PANEL_URI = `ui://tpm-observatory/panel-${package_default.version}.html`;
 var dataDir = resolve2(process.env.PLUGIN_DATA || ".data");
 var store = new SampleStore(join(dataDir, "samples.sqlite"));
 var panelHtml = await readFile(new URL("./panel.html", import.meta.url), "utf8");
-var server = new McpServer({ name: "tpm-observatory", version: "0.3.0" });
+var server = new McpServer({ name: "tpm-observatory", version: package_default.version });
 var cachedCatalogue = null;
 server.registerResource(
   "tpm-observatory-panel",

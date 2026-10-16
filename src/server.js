@@ -6,12 +6,13 @@ import { registerAppTool } from '@modelcontextprotocol/ext-apps/server';
 import { discoverModels } from './codex.js';
 import { summarize } from './stats.js';
 import { SampleStore } from './store.js';
+import packageMetadata from '../package.json' with { type: 'json' };
 
-const PANEL_URI = 'ui://tpm-observatory/panel.html';
+const PANEL_URI = `ui://tpm-observatory/panel-${packageMetadata.version}.html`;
 const dataDir = resolve(process.env.PLUGIN_DATA || '.data');
 const store = new SampleStore(join(dataDir, 'samples.sqlite'));
 const panelHtml = await readFile(new URL('./panel.html', import.meta.url), 'utf8');
-const server = new McpServer({ name: 'tpm-observatory', version: '0.3.0' });
+const server = new McpServer({ name: 'tpm-observatory', version: packageMetadata.version });
 let cachedCatalogue = null;
 
 server.registerResource(
