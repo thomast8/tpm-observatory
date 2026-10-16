@@ -71,6 +71,7 @@
       .legend-item { display: inline-flex; align-items: center; gap: 6px; color: var(--muted); font-size: 10px; }
       .legend-swatch { width: 6px; height: 6px; border-radius: 50%; }
       .models { display: grid; gap: 10px; }
+      .catalogue-label { margin: 18px 0 12px; color: var(--muted); font: 10px ui-monospace, monospace; }
       .model-row { display: grid; grid-template-columns: minmax(170px, 1.2fr) minmax(220px, 1.5fr) minmax(120px, 1fr); align-items: center; gap: 20px; padding: 18px; border: 1px solid var(--line); border-radius: 9px; background: var(--surface-solid); }
       .model-row.unmeasured { background: transparent; }
       .model-name { min-width: 0; }
@@ -193,7 +194,8 @@
           </section>
           <section class="panel">
             <div class="panel-head"><div><h2 class="panel-title"><span class="section-index">02</span> Model comparison</h2><p class="panel-copy">Reasoning efforts are pooled within each model and speed tier. The interval estimates the mean.</p></div><span class="panel-tag">95% confidence</span></div>
-            <div class="models">${dashboard.models.map((model) => modelRow(model)).join('')}</div>
+            <div class="models">${measured.map((model) => modelRow(model)).join('')}</div>
+            ${dashboard.models.some((model) => !model.stats) ? `<p class="catalogue-label">Awaiting first observations</p><div class="models">${dashboard.models.filter((model) => !model.stats).map((model) => modelRow(model)).join('')}</div>` : ''}
           </section>
           <footer class="footnote"><span>${escapeHtml(unit === 'second' ? dashboard.measurement.replace('minute', 'second') : dashboard.measurement)}</span><span>No extra model calls. Tool and command wait time is excluded.</span></footer>`;
       }
@@ -203,7 +205,7 @@
         const low = 8, high = 92;
         const average = stats && stats.max > stats.min ? low + (high - low) * (stats.average - stats.min) / (stats.max - stats.min) : 50;
         const color = seriesColor(model);
-        const identity = `<div class="model-name"><strong><span class="series-dot" style="background:${color}"></span>${escapeHtml(model.displayName)}</strong><div class="model-meta"><span class="tier tier-${model.tierName.toLowerCase().replaceAll(' ', '-')}">${escapeHtml(model.tierName)}</span>${model.isDefault ? '<span>Default model</span>' : ''}${model.available ? '' : '<span>History only</span>'}<span class="sample-count">${number(stats?.count ?? 0)} samples</span></div></div>`;
+        const identity = `<div class="model-name"><strong><span class="series-dot" style="background:${color}"></span>${escapeHtml(model.displayName)}</strong><div class="model-meta"><span class="tier tier-${model.tierName.toLowerCase().replaceAll(' ', '-')}">${escapeHtml(model.tierName)}</span>${model.isDefault ? '<span>Default model</span>' : ''}${model.available ? '' : '<span>History only</span>'}<span class="sample-count">${number(stats?.count ?? 0)} ${stats?.count === 1 ? 'sample' : 'samples'}</span></div></div>`;
         if (!stats) return `<article class="model-row unmeasured">${identity}<div class="waiting-label">Awaiting first observation</div></article>`;
         return `<article class="model-row">
           ${identity}
