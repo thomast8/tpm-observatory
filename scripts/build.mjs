@@ -1,6 +1,13 @@
-import { copyFile, mkdir } from 'node:fs/promises';
+import { copyFile, mkdir, readFile, writeFile } from 'node:fs/promises';
 import { build } from 'esbuild';
+import packageMetadata from '../package.json' with { type: 'json' };
 
+const mcpPath = new URL('../plugin/.mcp.json', import.meta.url);
+const mcp = JSON.parse(await readFile(mcpPath, 'utf8'));
+const [configuration] = Object.values(mcp.mcpServers);
+// Desktop shortcut connections can survive an upgrade; a release identity forces a fresh connection.
+mcp.mcpServers = { [`tpm-observatory-${packageMetadata.version.replaceAll('.', '-')}`]: configuration };
+await writeFile(mcpPath, `${JSON.stringify(mcp, null, 2)}\n`);
 await mkdir(new URL('../plugin/dist/', import.meta.url), { recursive: true });
 await build({
   entryPoints: ['src/server.js'],

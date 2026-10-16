@@ -312,7 +312,7 @@
       async function initialize() {
         render();
         try {
-          await rpcRequest('ui/initialize', { appInfo: { name: 'tpm-observatory', version: '0.3.1' }, appCapabilities: {}, protocolVersion: '2026-01-26' });
+          await rpcRequest('ui/initialize', { appInfo: { name: 'tpm-observatory', version: '0.3.2' }, appCapabilities: {}, protocolVersion: '2026-01-26' });
           rpcNotify('ui/notifications/initialized', {});
           startPolling();
           setTimeout(() => { if (!dashboard) void refreshDashboard(false); }, 400);
