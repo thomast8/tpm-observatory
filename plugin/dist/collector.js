@@ -257,7 +257,9 @@ async function markTurn(store, hook) {
 }
 async function collectTurn(store, hook) {
   if (!hook.transcriptPath) {
-    store.setCollectorStatus("waiting", "Waiting for a local transcript from Codex.");
+    const previous = store.getCollectorStatus();
+    const status = statusWithoutTranscript(previous);
+    store.setCollectorStatus(status.state, status.message);
     return null;
   }
   const marked = store.getTurn(hook.sessionId, hook.turnId);
@@ -266,13 +268,20 @@ async function collectTurn(store, hook) {
     const sample = parseTurnTelemetry(text, hook);
     if (sample) {
       store.add(sample);
-      store.setCollectorStatus("active", "Collecting completed Codex turns automatically.", sample.measuredAt);
+      store.setCollectorStatus(
+        "active",
+        "Collecting completed local Codex turns automatically.",
+        sample.measuredAt
+      );
       return sample;
     }
     await new Promise((resolveDelay) => setTimeout(resolveDelay, 400));
   }
   store.setCollectorStatus("waiting", "Waiting for final telemetry from the latest turn.");
   return null;
+}
+function statusWithoutTranscript(previous) {
+  return previous?.lastSampleAt ? { state: "active", message: "Collecting completed local Codex turns automatically." } : { state: "waiting", message: "Waiting for a completed local Codex turn." };
 }
 async function readTurnChunk(path, requestedOffset) {
   const details = await stat(path);
@@ -327,5 +336,6 @@ if (invokedPath === fileURLToPath(import.meta.url)) {
   });
 }
 export {
-  runCollector
+  runCollector,
+  statusWithoutTranscript
 };

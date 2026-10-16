@@ -37389,7 +37389,7 @@ var CodexTransport = class _CodexTransport {
     const transport = new _CodexTransport(child);
     try {
       await transport.request("initialize", {
-        clientInfo: { name: "tpm-observatory", title: "TPM Observatory", version: "0.2.1" },
+        clientInfo: { name: "tpm-observatory", title: "TPM Observatory", version: "0.2.2" },
         capabilities: { experimentalApi: true, requestAttestation: false }
       });
       transport.notify("initialized");
@@ -37715,7 +37715,7 @@ var PANEL_URI = "ui://tpm-observatory/panel.html";
 var dataDir = resolve2(process.env.PLUGIN_DATA || ".data");
 var store = new SampleStore(join(dataDir, "samples.sqlite"));
 var panelHtml = await readFile(new URL("./panel.html", import.meta.url), "utf8");
-var server = new McpServer({ name: "tpm-observatory", version: "0.2.1" });
+var server = new McpServer({ name: "tpm-observatory", version: "0.2.2" });
 var cachedCatalogue = null;
 server.registerResource(
   "tpm-observatory-panel",

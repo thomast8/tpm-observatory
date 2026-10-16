@@ -11,7 +11,7 @@ const PANEL_URI = 'ui://tpm-observatory/panel.html';
 const dataDir = resolve(process.env.PLUGIN_DATA || '.data');
 const store = new SampleStore(join(dataDir, 'samples.sqlite'));
 const panelHtml = await readFile(new URL('./panel.html', import.meta.url), 'utf8');
-const server = new McpServer({ name: 'tpm-observatory', version: '0.2.1' });
+const server = new McpServer({ name: 'tpm-observatory', version: '0.2.2' });
 let cachedCatalogue = null;
 
 server.registerResource(
