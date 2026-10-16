@@ -17,6 +17,8 @@ test('switches every throughput display between TPM and TPS', () => {
   assert.match(panel, /metricNumber\(stats\?\.average\)/);
   assert.match(panel, /metricNumber\(stats\?\.min\)/);
   assert.match(panel, /metricNumber\(stats\?\.max\)/);
+  assert.match(panel, /Reasoning efforts are pooled within each model and speed tier/);
+  assert.doesNotMatch(panel, /model\.effortLabel/);
   assert.doesNotMatch(panel, /tpm_benchmark/);
 });
 

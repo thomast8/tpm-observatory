@@ -231,7 +231,7 @@
         const average = stats ? (stats.average / rangeMax) * 100 : 0;
         const color = palette[index % palette.length];
         return `<article class="model-row">
-          <div class="model-name"><strong>${escapeHtml(model.displayName)}</strong><div class="model-meta"><span class="status ${model.available ? '' : 'off'}"></span><span class="tier tier-${model.tierName.toLowerCase().replaceAll(' ', '-')}">${escapeHtml(model.tierName)}</span>${escapeHtml(model.effortLabel)}${model.isDefault ? ' · default model' : ''}${model.available ? '' : ' · history only'}</div></div>
+          <div class="model-name"><strong>${escapeHtml(model.displayName)}</strong><div class="model-meta"><span class="status ${model.available ? '' : 'off'}"></span><span class="tier tier-${model.tierName.toLowerCase().replaceAll(' ', '-')}">${escapeHtml(model.tierName)}</span>${model.isDefault ? '<span>Default model</span>' : ''}${model.available ? '' : '<span>History only</span>'}</div></div>
           <div class="latest"><div class="stat-label">Latest · ${unitLabel()}</div><div class="stat-value" style="color:${color}">${metricNumber(model.latest?.tpm)} ${unitLabel()}</div></div>
           <div class="ci"><div class="stat-label">Average · 95% CI · ${unitLabel()}</div><div class="stat-value">${metricNumber(stats?.average)} ${stats?.ci95Low == null ? '' : `<span style="color:var(--muted);font-size:11px;font-weight:500">(${metricNumber(stats.ci95Low)}–${metricNumber(stats.ci95High)})</span>`}</div></div>
           <div class="range-cell"><div class="stat-label">Min–max · n=${stats?.count ?? 0}</div><div class="range"><span class="range-line"></span>${stats ? `<span class="range-fill" style="left:${low}%;width:${Math.max(high - low, 2)}%;background:${color}"></span><span class="range-point" style="left:${average}%;background:${color}"></span>` : ''}</div><div class="range-labels"><span>${metricNumber(stats?.min)}</span><span>${metricNumber(stats?.max)}</span></div></div>
@@ -332,7 +332,7 @@
       async function initialize() {
         render();
         try {
-          await rpcRequest('ui/initialize', { appInfo: { name: 'tpm-observatory', version: '0.2.3' }, appCapabilities: {}, protocolVersion: '2026-01-26' });
+          await rpcRequest('ui/initialize', { appInfo: { name: 'tpm-observatory', version: '0.2.4' }, appCapabilities: {}, protocolVersion: '2026-01-26' });
           rpcNotify('ui/notifications/initialized', {});
           startPolling();
           setTimeout(() => { if (!dashboard) void refreshDashboard(false); }, 400);

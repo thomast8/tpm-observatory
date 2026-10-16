@@ -37389,7 +37389,7 @@ var CodexTransport = class _CodexTransport {
     const transport = new _CodexTransport(child);
     try {
       await transport.request("initialize", {
-        clientInfo: { name: "tpm-observatory", title: "TPM Observatory", version: "0.2.3" },
+        clientInfo: { name: "tpm-observatory", title: "TPM Observatory", version: "0.2.4" },
         capabilities: { experimentalApi: true, requestAttestation: false }
       });
       transport.notify("initialized");
@@ -37561,13 +37561,6 @@ function summarize(values) {
     ci95High: margin === null ? null : average + margin
   };
 }
-function summarizeEfforts(values) {
-  const efforts = [...new Set(values.filter((value) => typeof value === "string" && value.trim()))];
-  return {
-    efforts,
-    label: efforts.length === 0 ? "No observations" : efforts.length === 1 ? `${efforts[0]} effort` : "Mixed effort"
-  };
-}
 function tCritical(degreesOfFreedom) {
   return degreesOfFreedom <= T95.length ? T95[degreesOfFreedom - 1] : 1.96;
 }
@@ -37722,7 +37715,7 @@ var PANEL_URI = "ui://tpm-observatory/panel.html";
 var dataDir = resolve2(process.env.PLUGIN_DATA || ".data");
 var store = new SampleStore(join(dataDir, "samples.sqlite"));
 var panelHtml = await readFile(new URL("./panel.html", import.meta.url), "utf8");
-var server = new McpServer({ name: "tpm-observatory", version: "0.2.3" });
+var server = new McpServer({ name: "tpm-observatory", version: "0.2.4" });
 var cachedCatalogue = null;
 server.registerResource(
   "tpm-observatory-panel",
@@ -37805,7 +37798,6 @@ function modelRow(id, catalogue, allSamples) {
   const model = catalogue.get(modelId);
   const samples = allSamples.filter((sample) => sample.model === modelId && sample.serviceTier === serviceTier).toReversed();
   const stats = summarize(samples.map((sample) => sample.tpm));
-  const effortSummary = summarizeEfforts(samples.map((sample) => sample.effort));
   return {
     seriesId: id,
     model: modelId,
@@ -37813,8 +37805,6 @@ function modelRow(id, catalogue, allSamples) {
     tierName: tierName(model, serviceTier),
     displayName: model?.displayName ?? samples.at(-1)?.displayName ?? modelId,
     available: Boolean(model),
-    efforts: effortSummary.efforts,
-    effortLabel: effortSummary.label,
     isDefault: Boolean(model?.isDefault),
     stats,
     latest: samples.at(-1) ?? null,
