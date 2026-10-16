@@ -1,0 +1,28 @@
+{
+  "name": "tpm-observatory",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=22.5.0"
+  },
+  "scripts": {
+    "build": "node scripts/build.mjs",
+    "lint": "node --check src/codex.js && node --check src/server.js && node --check src/stats.js && node --check src/store.js && node --check scripts/build.mjs && node --check scripts/qa-mcp.mjs",
+    "qa:mcp": "node scripts/qa-mcp.mjs",
+    "test": "node --test --experimental-test-coverage --test-coverage-include=src/stats.js --test-coverage-include=src/store.js --test-coverage-lines=90 --test-coverage-functions=90 --test-coverage-branches=85",
+    "check": "npm run lint && npm test && npm run build"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/ext-apps": "1.7.5",
+    "@modelcontextprotocol/sdk": "1.32.0",
+    "zod": "4.6.5"
+  },
+  "devDependencies": {
+    "esbuild": "0.28.2"
+  },
+  "allowScripts": {
+    "esbuild@0.28.2": true
+  }
+}
+

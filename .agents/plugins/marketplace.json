@@ -1,0 +1,21 @@
+{
+  "name": "tpm-observatory-local",
+  "interface": {
+    "displayName": "TPM Observatory"
+  },
+  "plugins": [
+    {
+      "name": "tpm-observatory",
+      "source": {
+        "source": "local",
+        "path": "./plugin"
+      },
+      "policy": {
+        "installation": "AVAILABLE",
+        "authentication": "ON_INSTALL"
+      },
+      "category": "Developer tools"
+    }
+  ]
+}
+

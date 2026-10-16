@@ -1,0 +1,16 @@
+{
+  "name": "tpm-observatory",
+  "version": "0.1.0",
+  "description": "Track observed Codex model tokens per minute over time.",
+  "mcpServers": "./.mcp.json",
+  "interface": {
+    "logo": "./assets/tpm-observatory.svg",
+    "composerIcon": "./assets/tpm-observatory.svg",
+    "displayName": "TPM Observatory",
+    "shortDescription": "Compare live Codex model throughput over time.",
+    "longDescription": "Discover available Codex models, run isolated throughput samples, and compare averages, 95% confidence intervals, minima and maxima in a local dashboard.",
+    "category": "Developer tools",
+    "defaultPrompt": ["Open TPM Observatory."]
+  }
+}
+

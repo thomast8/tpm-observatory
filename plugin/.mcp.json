@@ -1,0 +1,14 @@
+{
+  "mcpServers": {
+    "tpm-observatory": {
+      "command": "node",
+      "args": [
+        "--input-type=module",
+        "-e",
+        "import { basename, resolve } from 'node:path';\nconst cache = resolve('../../..');\nif (basename(cache) !== 'cache') throw new Error('TPM Observatory requires an installed plugin cache');\nconst owner = basename(resolve('..')) + '-' + basename(resolve('../..'));\nprocess.env.PLUGIN_DATA = resolve(cache, '../data', owner);\nawait import('./dist/server.js');"
+      ],
+      "cwd": "."
+    }
+  }
+}
+

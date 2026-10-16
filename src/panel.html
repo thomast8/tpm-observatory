@@ -1,0 +1,333 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>TPM Observatory</title>
+    <style>
+      :root {
+        color-scheme: light dark;
+        --bg: #f4f3ef;
+        --surface: rgba(255, 255, 255, 0.82);
+        --surface-solid: #fff;
+        --surface-soft: #eeece7;
+        --ink: #171821;
+        --muted: #696a73;
+        --line: rgba(23, 24, 33, 0.11);
+        --accent: #6d54ef;
+        --accent-soft: #ece8ff;
+        --orange: #ee7045;
+        --green: #159f80;
+        --shadow: 0 18px 50px rgba(35, 27, 65, 0.08);
+      }
+
+      @media (prefers-color-scheme: dark) {
+        :root {
+          --bg: #111219;
+          --surface: rgba(30, 31, 42, 0.84);
+          --surface-solid: #1e1f2a;
+          --surface-soft: #272832;
+          --ink: #f3f1f8;
+          --muted: #aaa8b4;
+          --line: rgba(255, 255, 255, 0.1);
+          --accent: #9d8bff;
+          --accent-soft: #2c2845;
+          --orange: #ff8b65;
+          --green: #46d0af;
+          --shadow: 0 20px 60px rgba(0, 0, 0, 0.24);
+        }
+      }
+
+      * { box-sizing: border-box; }
+      html, body { min-width: 320px; min-height: 100%; }
+      body {
+        margin: 0;
+        background:
+          radial-gradient(circle at 10% 0%, color-mix(in srgb, var(--orange) 11%, transparent), transparent 30%),
+          radial-gradient(circle at 94% 8%, color-mix(in srgb, var(--accent) 12%, transparent), transparent 34%),
+          var(--bg);
+        color: var(--ink);
+        font-family: Inter, ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+        font-size: 14px;
+        font-variant-numeric: tabular-nums;
+      }
+      button { font: inherit; }
+      button:focus-visible { outline: 3px solid color-mix(in srgb, var(--accent) 38%, transparent); outline-offset: 2px; }
+
+      .shell { width: min(100%, 1060px); margin: 0 auto; padding: 22px; }
+      .topbar { display: flex; align-items: flex-start; justify-content: space-between; gap: 18px; margin-bottom: 22px; }
+      .eyebrow { margin: 0 0 7px; color: var(--accent); font-size: 11px; font-weight: 750; letter-spacing: .12em; text-transform: uppercase; }
+      h1 { margin: 0; font-size: clamp(25px, 5vw, 39px); line-height: 1; letter-spacing: -.045em; }
+      .subtitle { max-width: 610px; margin: 10px 0 0; color: var(--muted); line-height: 1.45; }
+      .actions { display: flex; gap: 8px; flex-wrap: wrap; justify-content: flex-end; }
+      .button {
+        min-height: 40px;
+        border: 1px solid var(--line);
+        border-radius: 12px;
+        padding: 9px 13px;
+        background: var(--surface);
+        color: var(--ink);
+        cursor: pointer;
+        font-weight: 650;
+        box-shadow: 0 2px 10px rgba(30, 25, 45, .04);
+      }
+      .button:hover:not(:disabled) { transform: translateY(-1px); border-color: color-mix(in srgb, var(--accent) 35%, var(--line)); }
+      .button.primary { border-color: transparent; background: var(--ink); color: var(--bg); }
+      .button.small { min-height: 34px; padding: 7px 11px; border-radius: 10px; font-size: 12px; }
+      .button:disabled { cursor: wait; opacity: .48; }
+
+      .notice { display: flex; gap: 10px; align-items: center; margin: -8px 0 18px; padding: 11px 13px; border: 1px solid color-mix(in srgb, var(--orange) 35%, var(--line)); border-radius: 12px; background: color-mix(in srgb, var(--orange) 8%, var(--surface)); color: var(--muted); }
+      .notice strong { color: var(--ink); }
+      .dot { width: 8px; height: 8px; flex: none; border-radius: 50%; background: var(--orange); box-shadow: 0 0 0 5px color-mix(in srgb, var(--orange) 15%, transparent); }
+
+      .summary { display: grid; grid-template-columns: 1.35fr 1fr 1fr; gap: 12px; margin-bottom: 12px; }
+      .metric, .panel {
+        border: 1px solid var(--line);
+        background: var(--surface);
+        backdrop-filter: blur(18px);
+        box-shadow: var(--shadow);
+      }
+      .metric { min-height: 126px; border-radius: 18px; padding: 18px; overflow: hidden; position: relative; }
+      .metric.hero { background: linear-gradient(138deg, #171821 0%, #29233f 70%, #3b2d5d 100%); color: #fff; }
+      .metric.hero::after { content: ""; position: absolute; right: -25px; bottom: -35px; width: 150px; height: 150px; border-radius: 50%; background: radial-gradient(circle, rgba(157, 139, 255, .4), transparent 68%); }
+      .metric-label { color: var(--muted); font-size: 11px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; }
+      .hero .metric-label { color: rgba(255,255,255,.6); }
+      .metric-value { margin-top: 14px; font-size: clamp(26px, 5vw, 42px); line-height: 1; font-weight: 760; letter-spacing: -.045em; }
+      .metric-value.text { max-width: 92%; font-size: clamp(20px, 3vw, 29px); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+      .metric-detail { margin-top: 8px; color: var(--muted); font-size: 12px; }
+      .hero .metric-detail { color: rgba(255,255,255,.62); }
+
+      .panel { border-radius: 20px; padding: 19px; margin-bottom: 12px; }
+      .panel-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; margin-bottom: 14px; }
+      .panel-title { margin: 0; font-size: 16px; letter-spacing: -.015em; }
+      .panel-copy { margin: 5px 0 0; color: var(--muted); font-size: 12px; }
+      .chart-wrap { width: 100%; min-height: 250px; border-radius: 14px; background: color-mix(in srgb, var(--surface-soft) 58%, transparent); overflow: hidden; }
+      .chart { display: block; width: 100%; height: 250px; }
+      .gridline { stroke: var(--line); stroke-width: 1; }
+      .axis-label { fill: var(--muted); font: 10px ui-sans-serif, system-ui, sans-serif; }
+      .legend { display: flex; flex-wrap: wrap; gap: 8px 16px; margin-top: 12px; }
+      .legend-item { display: inline-flex; align-items: center; gap: 6px; color: var(--muted); font-size: 11px; }
+      .legend-swatch { width: 17px; height: 3px; border-radius: 3px; }
+
+      .models { display: grid; gap: 9px; }
+      .model-row { display: grid; grid-template-columns: minmax(165px, 1.2fr) minmax(110px, .75fr) minmax(130px, .85fr) minmax(135px, 1fr) auto; gap: 14px; align-items: center; padding: 14px; border: 1px solid var(--line); border-radius: 15px; background: color-mix(in srgb, var(--surface-solid) 80%, transparent); }
+      .model-name { min-width: 0; }
+      .model-name strong { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 14px; }
+      .model-meta { display: flex; gap: 6px; align-items: center; margin-top: 4px; color: var(--muted); font-size: 11px; }
+      .status { width: 7px; height: 7px; border-radius: 50%; background: var(--green); }
+      .status.off { background: var(--muted); }
+      .stat-label { color: var(--muted); font-size: 10px; letter-spacing: .07em; text-transform: uppercase; }
+      .stat-value { margin-top: 4px; font-size: 15px; font-weight: 700; }
+      .range { position: relative; height: 27px; margin-top: 1px; }
+      .range-line { position: absolute; left: 0; right: 0; top: 13px; height: 2px; border-radius: 2px; background: var(--line); }
+      .range-fill { position: absolute; top: 11px; height: 6px; border-radius: 6px; background: color-mix(in srgb, var(--accent) 72%, var(--green)); }
+      .range-point { position: absolute; top: 8px; width: 12px; height: 12px; border: 3px solid var(--surface-solid); border-radius: 50%; background: var(--accent); box-shadow: 0 0 0 1px var(--line); transform: translateX(-50%); }
+      .range-labels { display: flex; justify-content: space-between; color: var(--muted); font-size: 9px; }
+      .empty { min-height: 220px; display: grid; place-items: center; padding: 28px; text-align: center; color: var(--muted); }
+      .empty-mark { width: 58px; height: 58px; display: grid; place-items: center; margin: 0 auto 12px; border-radius: 18px; background: var(--accent-soft); color: var(--accent); font-size: 28px; }
+      .footnote { display: flex; justify-content: space-between; gap: 12px; padding: 5px 3px 18px; color: var(--muted); font-size: 10px; line-height: 1.5; }
+      .toast { position: fixed; z-index: 5; left: 50%; bottom: 18px; width: min(calc(100% - 32px), 520px); transform: translate(-50%, 18px); padding: 11px 14px; border: 1px solid var(--line); border-radius: 13px; background: var(--ink); color: var(--bg); box-shadow: var(--shadow); opacity: 0; pointer-events: none; transition: .2s ease; }
+      .toast.show { opacity: 1; transform: translate(-50%, 0); }
+      .spinner { display: inline-block; width: 11px; height: 11px; margin-right: 6px; border: 2px solid currentColor; border-right-color: transparent; border-radius: 50%; animation: spin .7s linear infinite; vertical-align: -1px; }
+      @keyframes spin { to { transform: rotate(360deg); } }
+
+      @media (max-width: 760px) {
+        .shell { padding: 17px; }
+        .topbar { display: block; }
+        .actions { justify-content: flex-start; margin-top: 15px; }
+        .summary { grid-template-columns: 1fr 1fr; }
+        .metric.hero { grid-column: 1 / -1; }
+        .model-row { grid-template-columns: 1fr 1fr auto; }
+        .model-row .ci, .model-row .range-cell { display: none; }
+      }
+      @media (max-width: 440px) {
+        .summary { grid-template-columns: 1fr; }
+        .metric.hero { grid-column: auto; }
+        .model-row { grid-template-columns: 1fr auto; }
+        .model-row .latest { display: none; }
+        .footnote { display: block; }
+      }
+    </style>
+  </head>
+  <body>
+    <div id="app" class="shell" aria-live="polite"></div>
+    <div id="toast" class="toast" role="status"></div>
+    <script type="module">
+      const palette = ['#7c5cff', '#ef7047', '#18a887', '#df4f8b', '#3f8ee8', '#c18a24'];
+      const app = document.querySelector('#app');
+      const toast = document.querySelector('#toast');
+      let dashboard = null;
+      let busyModel = null;
+      let runningAll = false;
+      let rpcId = 0;
+      let toastTimer;
+      const pending = new Map();
+
+      const escapeHtml = (value) => String(value)
+        .replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;')
+        .replaceAll('"', '&quot;').replaceAll("'", '&#039;');
+      const number = (value) => value == null ? '—' : Math.round(value).toLocaleString();
+      const shortDate = (value) => value ? new Intl.DateTimeFormat(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }).format(new Date(value)) : 'No samples yet';
+
+      function showToast(message) {
+        clearTimeout(toastTimer);
+        toast.textContent = message;
+        toast.classList.add('show');
+        toastTimer = setTimeout(() => toast.classList.remove('show'), 3800);
+      }
+
+      function render() {
+        if (!dashboard) {
+          app.innerHTML = `<div class="empty"><div><div class="empty-mark">⌁</div><strong>Opening the observatory…</strong><p>Reading your live Codex model catalogue.</p></div></div>`;
+          return;
+        }
+        const available = dashboard.models.filter((model) => model.available);
+        const measured = dashboard.models.filter((model) => model.stats);
+        const best = dashboard.models.find((model) => model.model === dashboard.bestModel);
+        const latest = measured.map((model) => model.latest).filter(Boolean).toSorted((a, b) => b.measuredAt.localeCompare(a.measuredAt))[0];
+        app.innerHTML = `
+          <header class="topbar">
+            <div>
+              <p class="eyebrow">Model telemetry</p>
+              <h1>TPM Observatory</h1>
+              <p class="subtitle">Observed output throughput for the Codex models available to you, measured consistently over time.</p>
+            </div>
+            <div class="actions">
+              <button class="button" data-action="refresh" ${busyModel || runningAll ? 'disabled' : ''}>Refresh models</button>
+              <button class="button primary" data-action="all" ${busyModel || runningAll || !available.length ? 'disabled' : ''}>${runningAll ? '<span class="spinner"></span>Running suite' : 'Benchmark all'}</button>
+            </div>
+          </header>
+          ${dashboard.catalogueError ? `<div class="notice"><span class="dot"></span><span><strong>Live catalogue unavailable.</strong> Showing saved history. ${escapeHtml(dashboard.catalogueError)}</span></div>` : ''}
+          <section class="summary" aria-label="Summary">
+            <article class="metric hero"><div class="metric-label">Fastest average</div><div class="metric-value text">${escapeHtml(best?.displayName ?? 'Awaiting data')}</div><div class="metric-detail">${best ? `${number(best.stats.average)} observed TPM` : 'Run a benchmark to establish a baseline'}</div></article>
+            <article class="metric"><div class="metric-label">Available models</div><div class="metric-value">${available.length}</div><div class="metric-detail">Live Codex catalogue</div></article>
+            <article class="metric"><div class="metric-label">Saved samples</div><div class="metric-value">${dashboard.runCount}</div><div class="metric-detail">${latest ? `Latest ${shortDate(latest.measuredAt)}` : 'No measurements yet'}</div></article>
+          </section>
+          <section class="panel">
+            <div class="panel-head"><div><h2 class="panel-title">Throughput over time</h2><p class="panel-copy">Each point is one completed isolated generation turn.</p></div></div>
+            ${chart(measured)}
+          </section>
+          <section class="panel">
+            <div class="panel-head"><div><h2 class="panel-title">Model comparison</h2><p class="panel-copy">95% confidence interval estimates the mean. It appears after two samples.</p></div></div>
+            <div class="models">${dashboard.models.map((model, index) => modelRow(model, index)).join('')}</div>
+          </section>
+          <footer class="footnote"><span>${escapeHtml(dashboard.measurement)}</span><span>Benchmarks use the lowest advertised reasoning effort and consume normal Codex allowance.</span></footer>`;
+      }
+
+      function modelRow(model, index) {
+        const stats = model.stats;
+        const rangeMax = Math.max(stats?.max ?? 1, 1);
+        const low = stats ? (stats.min / rangeMax) * 100 : 0;
+        const high = stats ? (stats.max / rangeMax) * 100 : 0;
+        const average = stats ? (stats.average / rangeMax) * 100 : 0;
+        const color = palette[index % palette.length];
+        return `<article class="model-row">
+          <div class="model-name"><strong>${escapeHtml(model.displayName)}</strong><div class="model-meta"><span class="status ${model.available ? '' : 'off'}"></span>${model.available ? `Available · ${escapeHtml(model.effort ?? 'default')} effort${model.isDefault ? ' · default' : ''}` : 'History only'}</div></div>
+          <div class="latest"><div class="stat-label">Latest</div><div class="stat-value" style="color:${color}">${number(model.latest?.tpm)} TPM</div></div>
+          <div class="ci"><div class="stat-label">Average · 95% CI</div><div class="stat-value">${number(stats?.average)} ${stats?.ci95Low == null ? '' : `<span style="color:var(--muted);font-size:11px;font-weight:500">(${number(stats.ci95Low)}–${number(stats.ci95High)})</span>`}</div></div>
+          <div class="range-cell"><div class="stat-label">Min–max · n=${stats?.count ?? 0}</div><div class="range"><span class="range-line"></span>${stats ? `<span class="range-fill" style="left:${low}%;width:${Math.max(high - low, 2)}%;background:${color}"></span><span class="range-point" style="left:${average}%;background:${color}"></span>` : ''}</div><div class="range-labels"><span>${number(stats?.min)}</span><span>${number(stats?.max)}</span></div></div>
+          <button class="button small" data-action="run" data-model="${escapeHtml(model.model)}" ${!model.available || busyModel || runningAll ? 'disabled' : ''}>${busyModel === model.model ? '<span class="spinner"></span>Running' : 'Run'}</button>
+        </article>`;
+      }
+
+      function chart(models) {
+        if (!models.length) return `<div class="empty"><div><div class="empty-mark">↗</div><strong>No throughput samples yet</strong><p>Run one model or the full suite to draw the first trend line.</p></div></div>`;
+        const points = models.flatMap((model) => model.samples.map((sample) => ({ ...sample, model: model.model })));
+        const start = Math.min(...points.map((point) => Date.parse(point.measuredAt)));
+        const end = Math.max(...points.map((point) => Date.parse(point.measuredAt)));
+        const max = Math.max(...points.map((point) => point.tpm), 1) * 1.12;
+        const width = 900, height = 250, left = 48, right = 18, top = 18, bottom = 34;
+        const x = (date) => left + ((Date.parse(date) - start) / Math.max(end - start, 1)) * (width - left - right);
+        const y = (tpm) => top + (1 - tpm / max) * (height - top - bottom);
+        const grids = [0, .25, .5, .75, 1].map((ratio) => {
+          const py = top + ratio * (height - top - bottom);
+          return `<line class="gridline" x1="${left}" y1="${py}" x2="${width - right}" y2="${py}"/><text class="axis-label" x="${left - 8}" y="${py + 3}" text-anchor="end">${number(max * (1 - ratio))}</text>`;
+        }).join('');
+        const lines = models.map((model, index) => {
+          const color = palette[index % palette.length];
+          const path = model.samples.map((sample, pointIndex) => `${pointIndex ? 'L' : 'M'}${x(sample.measuredAt).toFixed(1)},${y(sample.tpm).toFixed(1)}`).join(' ');
+          const circles = model.samples.map((sample) => `<circle cx="${x(sample.measuredAt)}" cy="${y(sample.tpm)}" r="3.4" fill="${color}" stroke="var(--surface-solid)" stroke-width="2"/>`).join('');
+          return `<path d="${path}" fill="none" stroke="${color}" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>${circles}`;
+        }).join('');
+        const legend = models.map((model, index) => `<span class="legend-item"><span class="legend-swatch" style="background:${palette[index % palette.length]}"></span>${escapeHtml(model.displayName)}</span>`).join('');
+        return `<div class="chart-wrap"><svg class="chart" viewBox="0 0 ${width} ${height}" role="img" aria-label="Model throughput over time">${grids}${lines}<text class="axis-label" x="${left}" y="${height - 10}">${shortDate(new Date(start).toISOString())}</text><text class="axis-label" x="${width - right}" y="${height - 10}" text-anchor="end">${shortDate(new Date(end).toISOString())}</text></svg></div><div class="legend">${legend}</div>`;
+      }
+
+      function applyResponse(response) {
+        const value = response?.structuredContent?.dashboard ? response : response?.result ?? response;
+        if (value?.structuredContent?.dashboard) {
+          dashboard = value.structuredContent.dashboard;
+          render();
+          if (value.structuredContent.message) showToast(value.structuredContent.message);
+        }
+        return value;
+      }
+
+      function rpcNotify(method, params) { window.parent.postMessage({ jsonrpc: '2.0', method, params }, '*'); }
+      function rpcRequest(method, params) {
+        return new Promise((resolve, reject) => {
+          const id = ++rpcId;
+          pending.set(id, { resolve, reject });
+          window.parent.postMessage({ jsonrpc: '2.0', id, method, params }, '*');
+        });
+      }
+      async function callTool(name, args = {}) { return applyResponse(await rpcRequest('tools/call', { name, arguments: args })); }
+
+      window.addEventListener('message', (event) => {
+        if (event.source !== window.parent || event.data?.jsonrpc !== '2.0') return;
+        const message = event.data;
+        if (message.id !== undefined) {
+          const request = pending.get(message.id);
+          if (!request) return;
+          pending.delete(message.id);
+          if (message.error) request.reject(new Error(message.error.message));
+          else request.resolve(message.result);
+        } else if (message.method === 'ui/notifications/tool-result') applyResponse(message.params);
+      }, { passive: true });
+
+      app.addEventListener('click', async (event) => {
+        const button = event.target.closest('button[data-action]');
+        if (!button) return;
+        const action = button.dataset.action;
+        try {
+          if (action === 'refresh') {
+            button.disabled = true;
+            await callTool('tpm_refresh');
+          } else if (action === 'run') {
+            busyModel = button.dataset.model;
+            render();
+            await callTool('tpm_benchmark', { model: busyModel });
+          } else if (action === 'all') {
+            runningAll = true;
+            render();
+            const models = dashboard.models.filter((model) => model.available).map((model) => model.model);
+            for (const model of models) {
+              busyModel = model;
+              render();
+              await callTool('tpm_benchmark', { model });
+            }
+          }
+        } catch (error) {
+          showToast(error instanceof Error ? error.message : 'Action failed');
+        } finally {
+          busyModel = null;
+          runningAll = false;
+          render();
+        }
+      });
+
+      async function initialize() {
+        render();
+        try {
+          await rpcRequest('ui/initialize', { appInfo: { name: 'tpm-observatory', version: '0.1.0' }, appCapabilities: {}, protocolVersion: '2026-01-26' });
+          rpcNotify('ui/notifications/initialized', {});
+          setTimeout(() => { if (!dashboard) callTool('tpm_refresh').catch((error) => showToast(error.message)); }, 400);
+        } catch (error) {
+          showToast(`Could not connect to Codex: ${error.message}`);
+        }
+      }
+      initialize();
+    </script>
+  </body>
+</html>
+
