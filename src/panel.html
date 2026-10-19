@@ -182,7 +182,7 @@
               <p class="subtitle">A quiet record of how your models move.</p>
             </div>
             <div class="actions">
-              <div class="unit-toggle" role="group" aria-label="Throughput unit"><button class="unit-button ${unit === 'minute' ? 'active' : ''}" data-action="unit" data-unit="minute" aria-pressed="${unit === 'minute'}">TPM</button><button class="unit-button ${unit === 'second' ? 'active' : ''}" data-action="unit" data-unit="second" aria-pressed="${unit === 'second'}">TPS</button></div>
+              <div class="unit-toggle" role="group" aria-label="Throughput unit"><button class="unit-button ${unit === 'second' ? 'active' : ''}" data-action="unit" data-unit="second" aria-pressed="${unit === 'second'}">TPS</button><button class="unit-button ${unit === 'minute' ? 'active' : ''}" data-action="unit" data-unit="minute" aria-pressed="${unit === 'minute'}">TPM</button></div>
               <span class="collector-state"><span class="dot"></span>${escapeHtml(dashboard.collector.state === 'active' ? 'LIVE / 5s' : dashboard.collector.state === 'error' ? 'NEEDS ATTENTION' : 'AWAITING TURNS')}</span>
               <button class="button" data-action="refresh">Refresh</button>
             </div>
@@ -198,11 +198,11 @@
             ${chart(measured)}
           </section>
           <section class="panel">
-            <div class="panel-head"><div><h2 class="panel-title"><span class="section-index">02</span> Model comparison</h2><p class="panel-copy">Reasoning efforts are pooled within each model. The interval estimates the mean.</p></div><div class="panel-controls"><div class="unit-toggle" role="group" aria-label="Speed tier"><button class="unit-button ${tier === 'Standard' ? 'active' : ''}" data-action="tier" data-tier="Standard" aria-pressed="${tier === 'Standard'}">Standard</button><button class="unit-button ${tier === 'Fast' ? 'active' : ''}" data-action="tier" data-tier="Fast" aria-pressed="${tier === 'Fast'}">Fast</button></div><span class="panel-tag">95% confidence</span></div></div>
+            <div class="panel-head"><div><h2 class="panel-title"><span class="section-index">02</span> Model comparison</h2><p class="panel-copy">Reasoning efforts are pooled within each model. The interval estimates the mean.</p></div><div class="panel-controls"><div class="unit-toggle" role="group" aria-label="Speed tier"><button class="unit-button ${tier === 'Standard' ? 'active' : ''}" data-action="tier" data-tier="Standard" aria-pressed="${tier === 'Standard'}">Standard</button><button class="unit-button ${tier === 'Fast' ? 'active' : ''}" data-action="tier" data-tier="Fast" aria-pressed="${tier === 'Fast'}">Fast</button><button class="unit-button ${tier === 'Ultra Fast' ? 'active' : ''}" data-action="tier" data-tier="Ultra Fast" aria-pressed="${tier === 'Ultra Fast'}">Ultra Fast</button></div><span class="panel-tag">95% confidence</span></div></div>
             <div class="models">${comparedMeasured.map((model) => modelRow(model)).join('')}</div>
             ${comparedUnmeasured.length ? `<p class="catalogue-label">Awaiting first observations</p><div class="models">${comparedUnmeasured.map((model) => modelRow(model)).join('')}</div>` : ''}
           </section>
-          <footer class="footnote"><span>${escapeHtml(unit === 'second' ? dashboard.measurement.replace('minute', 'second') : dashboard.measurement)}</span><span>No extra model calls. Tool and command wait time is excluded.</span></footer>`;
+          <footer class="footnote"><span>${escapeHtml(unit === 'second' ? dashboard.measurement.replace('minute', 'second') : dashboard.measurement)}</span><span>No extra model calls. Tool and command wait time is excluded.</span><span aria-label="Version">v__APP_VERSION__</span></footer>`;
       }
 
       function modelRow(model) {
@@ -311,7 +311,7 @@
             unit = button.dataset.unit === 'second' ? 'second' : 'minute';
             render();
           } else if (action === 'tier') {
-            tier = button.dataset.tier === 'Fast' ? 'Fast' : 'Standard';
+            tier = ['Standard', 'Fast', 'Ultra Fast'].includes(button.dataset.tier) ? button.dataset.tier : 'Standard';
             render();
           } else if (action === 'refresh') {
             button.disabled = true;
@@ -327,7 +327,7 @@
       async function initialize() {
         render();
         try {
-          await rpcRequest('ui/initialize', { appInfo: { name: 'tpm-observatory', version: '1.0.0' }, appCapabilities: {}, protocolVersion: '2026-01-26' });
+          await rpcRequest('ui/initialize', { appInfo: { name: 'tpm-observatory', version: '__APP_VERSION__' }, appCapabilities: {}, protocolVersion: '2026-01-26' });
           rpcNotify('ui/notifications/initialized', {});
           startPolling();
           setTimeout(() => { if (!dashboard) void refreshDashboard(false); }, 400);

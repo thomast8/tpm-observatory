@@ -37713,7 +37713,7 @@ var SampleStore = class {
 // package.json
 var package_default = {
   name: "tpm-observatory",
-  version: "1.0.0",
+  version: "1.0.1",
   private: true,
   type: "module",
   engines: {
@@ -37742,7 +37742,7 @@ var package_default = {
 var PANEL_URI = `ui://tpm-observatory/panel-${package_default.version}.html`;
 var dataDir = resolve2(process.env.PLUGIN_DATA || ".data");
 var store = new SampleStore(join(dataDir, "samples.sqlite"));
-var panelHtml = await readFile(new URL("./panel.html", import.meta.url), "utf8");
+var panelHtml = (await readFile(new URL("./panel.html", import.meta.url), "utf8")).replaceAll("__APP_VERSION__", package_default.version);
 var server = new McpServer({ name: "tpm-observatory", version: package_default.version });
 var cachedCatalogue = null;
 server.registerResource(
