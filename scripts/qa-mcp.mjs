@@ -11,7 +11,7 @@ const transport = new StdioClientTransport({
   env: { ...process.env, PLUGIN_DATA: dataDir },
   stderr: 'pipe',
 });
-const client = new Client({ name: 'tpm-observatory-qa', version: '0.3.5' });
+const client = new Client({ name: 'tpm-observatory-qa', version: '1.0.0' });
 
 try {
   await client.connect(transport);
