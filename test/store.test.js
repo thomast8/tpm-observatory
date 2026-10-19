@@ -1,5 +1,8 @@
 import assert from 'node:assert/strict';
+import { mkdtempSync } from 'node:fs';
 import { DatabaseSync } from 'node:sqlite';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import test from 'node:test';
 import { SampleStore } from '../src/store.js';
 
@@ -48,7 +51,7 @@ test('keeps turn offsets and collector health', () => {
 });
 
 test('migrates the 0.1 sample schema without deleting its benchmark row', () => {
-  const path = '/private/tmp/tpm-observatory-legacy-test.sqlite';
+  const path = join(mkdtempSync(join(tmpdir(), 'tpm-observatory-legacy-test-')), 'samples.sqlite');
   const database = new DatabaseSync(path);
   database.exec(`DROP TABLE IF EXISTS samples;
     DROP TABLE IF EXISTS turn_offsets;

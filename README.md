@@ -1,23 +1,44 @@
 # TPM Observatory
 
-A local Codex plugin that discovers the models currently available to your account and passively measures their observed output tokens per minute over time.
+TPM Observatory is a desktop-only Codex plugin that passively measures observed model throughput without making benchmark calls. Its dashboard compares models and speed tiers using TPS or TPM, averages, observed ranges, and 95% confidence intervals for the mean.
 
-The panel reports each model and speed tier's latest result, average, 95% confidence interval for the mean, minimum, maximum, and sample count. Reasoning efforts are pooled within that model and speed-tier series. Completed main-chat turns are captured automatically by bundled hooks. No benchmark prompt or extra model call is made.
+## Install
+
+TPM Observatory requires Codex desktop or Codex CLI, Node.js 22.5 or newer, and the `codex` command on your `PATH`.
+
+```sh
+codex plugin marketplace add thomast8/tpm-observatory --ref main
+codex plugin add tpm-observatory@tpm-observatory
+```
+
+Start a new Codex chat after installation. Open the dashboard by asking Codex to use TPM Observatory or by invoking its `tpm_open` tool.
+
+Codex will ask you to review and trust the bundled hooks. The hooks are required for automatic collection and run only when a prompt starts and a turn stops.
 
 ## Measurement
 
 `TPM = output tokens / active model-generation time in minutes`
 
-Output tokens include reasoning output tokens because that is the complete generation work reported by Codex. Active duration sums streamed reasoning and assistant-message time while excluding tool and command waits. Standard, Fast, and Ultra Fast observations remain separate series.
+Output tokens include reasoning output. Active duration is the completed turn duration minus merged tool and command execution intervals, so tool waits are excluded without dropping model responses that invoke tools. Standard, Fast, and Ultra Fast observations remain separate series.
 
-Codex requires review and trust for a newly installed plugin hook. After installing or upgrading, approve the TPM Observatory hooks once when Codex asks. The collector reads only the current local transcript and stores numeric telemetry, model, effort, speed tier, session ID, and turn ID in the plugin's private SQLite database.
+The collector reads only the current local Codex transcript. It stores numeric telemetry, model, effort, speed tier, session ID, and turn ID in the plugin's private SQLite database under `PLUGIN_DATA`. It does not send telemetry anywhere or make extra model calls.
+
+## Upgrade
+
+```sh
+codex plugin marketplace upgrade tpm-observatory
+codex plugin add tpm-observatory@tpm-observatory
+```
+
+Start a new Codex chat after upgrading.
 
 ## Development
 
 ```sh
 just setup
 just check
+just qa-mcp
 ```
 
-The built plugin is in `plugin/`. Its measurements are stored in the installed plugin's private data directory, not in this repository.
+Source lives in `src/`; `npm run build` writes the installable bundle to `plugin/`.
 

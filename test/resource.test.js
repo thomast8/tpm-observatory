@@ -11,10 +11,15 @@ test('the opener and resource share a release-specific address to avoid stale ho
   const metadata = JSON.parse(await readFile(join(root, 'package.json'), 'utf8'));
   const plugin = JSON.parse(await readFile(join(root, 'plugin/.codex-plugin/plugin.json'), 'utf8'));
   const mcp = JSON.parse(await readFile(join(root, 'plugin/.mcp.json'), 'utf8'));
+  const portablePlugin = JSON.parse(await readFile(join(root, 'plugin/plugin.json'), 'utf8'));
+  const portableMcp = JSON.parse(await readFile(join(root, 'plugin/mcp.json'), 'utf8'));
   assert.equal(plugin.version, metadata.version);
+  assert.equal(portablePlugin.version, metadata.version);
   assert.deepEqual(Object.keys(mcp.mcpServers), [
     `tpm-observatory-${metadata.version.replaceAll('.', '-')}`,
   ]);
+  assert.deepEqual(Object.keys(portableMcp.mcpServers), Object.keys(mcp.mcpServers));
+  assert.equal(portableMcp.mcpServers[Object.keys(portableMcp.mcpServers)[0]].type, 'stdio');
   const dataDir = await mkdtemp(join(tmpdir(), 'tpm-resource-test-'));
   const transport = new StdioClientTransport({
     command: process.execPath,
