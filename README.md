@@ -1,17 +1,17 @@
-# TPM Observatory
+# Am I Being Throttled?
 
-TPM Observatory is a desktop-only Codex plugin that passively measures observed model throughput without making benchmark calls. Its dashboard compares models and speed tiers using TPS or TPM, averages, observed ranges, and 95% confidence intervals for the mean.
+Am I Being Throttled? is a desktop-only Codex plugin that passively measures observed model throughput without making benchmark calls. Its dashboard compares models and speed tiers using TPS or TPM, averages, observed ranges, and 95% confidence intervals for the mean. These measurements show speed; they cannot establish whether a provider throttled a turn.
 
 ## Install
 
-TPM Observatory requires Codex desktop or Codex CLI, Node.js 22.5 or newer, and the `codex` command on your `PATH`.
+Am I Being Throttled? requires Codex desktop or Codex CLI, Node.js 22.5 or newer, and the `codex` command on your `PATH`.
 
 ```sh
 codex plugin marketplace add thomast8/tpm-observatory --ref main
 codex plugin add tpm-observatory@tpm-observatory
 ```
 
-Start a new Codex chat after installation. Open the dashboard by asking Codex to use TPM Observatory or by invoking its `tpm_open` tool.
+Start a new Codex chat after installation. Open the dashboard by asking Codex to use Am I Being Throttled? or by invoking its `tpm_open` tool.
 
 Codex will ask you to review and trust the bundled hooks. The hooks are required for automatic collection and run only when a prompt starts and a turn stops.
 

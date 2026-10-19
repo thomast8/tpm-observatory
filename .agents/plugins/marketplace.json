@@ -1,7 +1,7 @@
 {
   "name": "tpm-observatory",
   "interface": {
-    "displayName": "TPM Observatory"
+    "displayName": "Am I Being Throttled?"
   },
   "plugins": [
     {

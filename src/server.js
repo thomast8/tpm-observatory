@@ -20,7 +20,7 @@ server.registerResource(
   'tpm-observatory-panel',
   PANEL_URI,
   {
-    title: 'TPM Observatory',
+    title: 'Am I Being Throttled?',
     description: 'Observed Codex model throughput over time.',
     mimeType: 'text/html;profile=mcp-app',
   },
@@ -33,7 +33,7 @@ registerAppTool(
   server,
   'tpm_open',
   {
-    title: 'Open TPM Observatory',
+    title: 'Open Am I Being Throttled?',
     description: 'Open the local model throughput dashboard.',
     inputSchema: {},
     _meta: {
@@ -41,19 +41,19 @@ registerAppTool(
       'openai/ui': { entrypoints: [{ type: 'thread' }] },
     },
   },
-  async () => dashboardReply('TPM Observatory opened.'),
+  async () => dashboardReply('Am I Being Throttled? opened.'),
 );
 
 registerAppTool(
   server,
   'tpm_refresh',
   {
-    title: 'Refresh TPM Observatory',
+    title: 'Refresh Am I Being Throttled?',
     description: 'Refresh saved measurements and the cached Codex model catalogue.',
     inputSchema: {},
     _meta: { ui: { visibility: ['app'] } },
   },
-  async () => dashboardReply('TPM Observatory refreshed.'),
+  async () => dashboardReply('Am I Being Throttled? refreshed.'),
 );
 
 async function dashboardReply(message) {

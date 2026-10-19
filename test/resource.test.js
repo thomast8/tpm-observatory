@@ -40,7 +40,7 @@ test('the opener and resource share a release-specific address to avoid stale ho
     assert.ok(resources.resources.every((resource) => resource.uri !== 'ui://tpm-observatory/panel.html'));
     const panel = await client.readResource({ uri });
     assert.equal(panel.contents[0].mimeType, 'text/html;profile=mcp-app');
-    assert.match(panel.contents[0].text, /A quiet record of how your models move/);
+    assert.match(panel.contents[0].text, /Observed model throughput from your Codex turns/);
     assert.ok(panel.contents[0].text.includes(`<span aria-label="Version">v${metadata.version}</span>`));
     assert.ok(!panel.contents[0].text.includes('__APP_VERSION__'));
   } finally {

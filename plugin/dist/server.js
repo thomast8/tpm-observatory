@@ -37389,7 +37389,7 @@ var CodexTransport = class _CodexTransport {
     const transport = new _CodexTransport(child);
     try {
       await transport.request("initialize", {
-        clientInfo: { name: "tpm-observatory", title: "TPM Observatory", version: "1.0.0" },
+        clientInfo: { name: "tpm-observatory", title: "Am I Being Throttled?", version: "1.0.0" },
         capabilities: { experimentalApi: true, requestAttestation: false }
       });
       transport.notify("initialized");
@@ -37450,7 +37450,7 @@ var CodexTransport = class _CodexTransport {
       this.write({
         jsonrpc: "2.0",
         id: message.id,
-        error: { code: -32e3, message: "TPM Observatory does not accept server requests" }
+        error: { code: -32e3, message: "Am I Being Throttled? does not accept server requests" }
       });
       return;
     }
@@ -37749,7 +37749,7 @@ server.registerResource(
   "tpm-observatory-panel",
   PANEL_URI,
   {
-    title: "TPM Observatory",
+    title: "Am I Being Throttled?",
     description: "Observed Codex model throughput over time.",
     mimeType: "text/html;profile=mcp-app"
   },
@@ -37761,7 +37761,7 @@ K3(
   server,
   "tpm_open",
   {
-    title: "Open TPM Observatory",
+    title: "Open Am I Being Throttled?",
     description: "Open the local model throughput dashboard.",
     inputSchema: {},
     _meta: {
@@ -37769,18 +37769,18 @@ K3(
       "openai/ui": { entrypoints: [{ type: "thread" }] }
     }
   },
-  async () => dashboardReply("TPM Observatory opened.")
+  async () => dashboardReply("Am I Being Throttled? opened.")
 );
 K3(
   server,
   "tpm_refresh",
   {
-    title: "Refresh TPM Observatory",
+    title: "Refresh Am I Being Throttled?",
     description: "Refresh saved measurements and the cached Codex model catalogue.",
     inputSchema: {},
     _meta: { ui: { visibility: ["app"] } }
   },
-  async () => dashboardReply("TPM Observatory refreshed.")
+  async () => dashboardReply("Am I Being Throttled? refreshed.")
 );
 async function dashboardReply(message) {
   const dashboard = await buildDashboard();

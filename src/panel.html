@@ -3,7 +3,7 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>TPM Observatory</title>
+    <title>Am I Being Throttled?</title>
     <style>
       :root {
         color-scheme: light dark;
@@ -162,7 +162,7 @@
 
       function render() {
         if (!dashboard) {
-          app.innerHTML = `<div class="empty"><div><div class="empty-mark">⌁</div><strong>Opening the observatory…</strong><p>Reading your live Codex model catalogue.</p></div></div>`;
+          app.innerHTML = `<div class="empty"><div><div class="empty-mark">⌁</div><strong>Opening the dashboard…</strong><p>Reading your live Codex model catalogue.</p></div></div>`;
           return;
         }
         const availableCount = new Set(dashboard.models.filter((model) => model.available).map((model) => model.model)).size;
@@ -178,8 +178,8 @@
           <header class="topbar">
             <div>
               <p class="eyebrow"><svg class="brand-mark" viewBox="0 0 24 24" fill="none" aria-hidden="true"><circle cx="12" cy="12" r="10" stroke="currentColor"/><path d="M5 14h4l3-7 3 11 2-4h2" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/></svg> Local model telemetry</p>
-              <h1>TPM Observatory</h1>
-              <p class="subtitle">A quiet record of how your models move.</p>
+              <h1>Am I Being Throttled?</h1>
+              <p class="subtitle">Observed model throughput from your Codex turns.</p>
             </div>
             <div class="actions">
               <div class="unit-toggle" role="group" aria-label="Throughput unit"><button class="unit-button ${unit === 'second' ? 'active' : ''}" data-action="unit" data-unit="second" aria-pressed="${unit === 'second'}">TPS</button><button class="unit-button ${unit === 'minute' ? 'active' : ''}" data-action="unit" data-unit="minute" aria-pressed="${unit === 'minute'}">TPM</button></div>
@@ -258,7 +258,7 @@
         if (value?.structuredContent?.dashboard) {
           dashboard = value.structuredContent.dashboard;
           render();
-          if (value.structuredContent.message && value.structuredContent.message !== 'TPM Observatory refreshed.') showToast(value.structuredContent.message);
+          if (value.structuredContent.message && value.structuredContent.message !== 'Am I Being Throttled? refreshed.') showToast(value.structuredContent.message);
         }
         return value;
       }
