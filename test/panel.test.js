@@ -24,6 +24,20 @@ test('switches every throughput display between TPM and TPS', () => {
   assert.doesNotMatch(panel, /tpm_benchmark/);
 });
 
+test('plots observations as dots and a five-observation rolling average as the line', () => {
+  const script = panel.match(/<script type="module">([\s\S]*?)<\/script>/)[1];
+  const samples = [10, 20, 30, 40, 50, 60].map((tpm) => ({ tpm }));
+  const averages = runInNewContext(`${script}\nrollingAverage(samples).map((sample) => sample.tpm)`, {
+    document: { querySelector: () => ({ addEventListener() {} }), addEventListener() {}, visibilityState: 'hidden' },
+    window: { parent: { postMessage() {} }, addEventListener() {} }, samples,
+    setTimeout() {}, clearTimeout() {}, setInterval() {}, clearInterval() {},
+  });
+  assert.deepEqual([...averages], [10, 15, 20, 25, 30, 40]);
+  assert.match(panel, /Dots are completed turns\. Lines show a five-observation rolling average\./);
+  assert.match(panel, /rollingAverage\(model\.samples\)/);
+  assert.match(panel, /const circles = model\.samples\.map/);
+});
+
 test('renders average, interval, median and range in both units with consistent series colour', () => {
   let click;
   const app = { innerHTML: '', clientWidth: 428, addEventListener(event, handler) { if (event === 'click') click = handler; } };
