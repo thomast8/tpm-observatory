@@ -9,7 +9,9 @@ import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js'
 test('the opener and resource share a release-specific address to avoid stale host HTML', async () => {
   const root = resolve(new URL('..', import.meta.url).pathname);
   const metadata = JSON.parse(await readFile(join(root, 'package.json'), 'utf8'));
+  const plugin = JSON.parse(await readFile(join(root, 'plugin/.codex-plugin/plugin.json'), 'utf8'));
   const mcp = JSON.parse(await readFile(join(root, 'plugin/.mcp.json'), 'utf8'));
+  assert.equal(plugin.version, metadata.version);
   assert.deepEqual(Object.keys(mcp.mcpServers), [
     `tpm-observatory-${metadata.version.replaceAll('.', '-')}`,
   ]);

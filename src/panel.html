@@ -58,7 +58,8 @@
       .metric-value small { font: 10px ui-monospace, monospace; color: var(--muted); letter-spacing: 0; margin-left: 6px; }
       .metric-detail { margin-top: 10px; color: var(--muted); font-size: 11px; line-height: 1.4; }
       .panel { border: 1px solid var(--line); background: var(--surface); border-radius: 12px; padding: 22px; margin-bottom: 20px; }
-      .panel-head { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin-bottom: 20px; }
+      .panel-head { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 12px; margin-bottom: 20px; }
+      .panel-controls { display: flex; align-items: center; justify-content: flex-end; gap: 10px; }
       .section-index { color: var(--accent); font-size: 10px; margin-right: 8px; }
       .panel-title { margin: 0; font-size: 15px; font-weight: 600; letter-spacing: -.02em; }
       .panel-copy { margin: 7px 0 0; color: var(--muted); font-size: 11px; line-height: 1.5; }
@@ -83,9 +84,6 @@
       .stat-value { margin-top: 5px; font-size: 18px; font-weight: 500; letter-spacing: -.035em; }
       .average .stat-value { color: var(--ink); font-size: 24px; }
       .confidence { grid-column: 1 / -1; color: var(--muted); font: 10px ui-monospace, monospace; line-height: 1.5; }
-      .tier { display: inline-flex; align-items: center; min-height: 20px; padding: 2px 6px; border: 1px solid var(--line); border-radius: 4px; color: var(--muted); font: 9px ui-monospace, monospace; }
-      .tier-fast { background: color-mix(in srgb, var(--orange) 8%, var(--surface)); color: var(--orange); border-color: color-mix(in srgb, var(--orange) 25%, var(--line)); }
-      .tier-ultra-fast { background: var(--accent-soft); color: var(--accent); border-color: color-mix(in srgb, var(--accent) 30%, var(--line)); }
       .range-cell { border-left: 1px solid var(--line); padding-left: 18px; }
       .range { position: relative; height: 22px; margin-top: 7px; }
       .range-line { position: absolute; left: 0; right: 0; top: 10px; height: 2px; background: var(--line); }
@@ -136,6 +134,7 @@
       const toast = document.querySelector('#toast');
       let dashboard = null;
       let unit = 'second';
+      let tier = 'Standard';
       let refreshInFlight = false;
       let pollTimer = null;
       let rpcId = 0;
@@ -171,6 +170,9 @@
           .toSorted((left, right) => right.stats.average - left.stats.average);
         const best = dashboard.models.find((model) => model.seriesId === dashboard.bestSeries);
         const latest = measured.map((model) => model.latest).filter(Boolean).toSorted((a, b) => b.measuredAt.localeCompare(a.measuredAt))[0];
+        const compared = dashboard.models.filter((model) => model.tierName === tier);
+        const comparedMeasured = compared.filter((model) => model.stats).toSorted((left, right) => right.stats.average - left.stats.average);
+        const comparedUnmeasured = compared.filter((model) => !model.stats);
         app.innerHTML = `
           <header class="topbar">
             <div>
@@ -195,9 +197,9 @@
             ${chart(measured)}
           </section>
           <section class="panel">
-            <div class="panel-head"><div><h2 class="panel-title"><span class="section-index">02</span> Model comparison</h2><p class="panel-copy">Reasoning efforts are pooled within each model and speed tier. The interval estimates the mean.</p></div><span class="panel-tag">95% confidence</span></div>
-            <div class="models">${measured.map((model) => modelRow(model)).join('')}</div>
-            ${dashboard.models.some((model) => !model.stats) ? `<p class="catalogue-label">Awaiting first observations</p><div class="models">${dashboard.models.filter((model) => !model.stats).map((model) => modelRow(model)).join('')}</div>` : ''}
+            <div class="panel-head"><div><h2 class="panel-title"><span class="section-index">02</span> Model comparison</h2><p class="panel-copy">Reasoning efforts are pooled within each model. The interval estimates the mean.</p></div><div class="panel-controls"><div class="unit-toggle" role="group" aria-label="Speed tier"><button class="unit-button ${tier === 'Standard' ? 'active' : ''}" data-action="tier" data-tier="Standard" aria-pressed="${tier === 'Standard'}">Standard</button><button class="unit-button ${tier === 'Fast' ? 'active' : ''}" data-action="tier" data-tier="Fast" aria-pressed="${tier === 'Fast'}">Fast</button></div><span class="panel-tag">95% confidence</span></div></div>
+            <div class="models">${comparedMeasured.map((model) => modelRow(model)).join('')}</div>
+            ${comparedUnmeasured.length ? `<p class="catalogue-label">Awaiting first observations</p><div class="models">${comparedUnmeasured.map((model) => modelRow(model)).join('')}</div>` : ''}
           </section>
           <footer class="footnote"><span>${escapeHtml(unit === 'second' ? dashboard.measurement.replace('minute', 'second') : dashboard.measurement)}</span><span>No extra model calls. Tool and command wait time is excluded.</span></footer>`;
       }
@@ -207,7 +209,7 @@
         const low = 8, high = 92;
         const average = stats && stats.max > stats.min ? low + (high - low) * (stats.average - stats.min) / (stats.max - stats.min) : 50;
         const color = seriesColor(model);
-        const identity = `<div class="model-name"><strong><span class="series-dot" style="background:${color}"></span>${escapeHtml(model.displayName)}</strong><div class="model-meta"><span class="tier tier-${model.tierName.toLowerCase().replaceAll(' ', '-')}">${escapeHtml(model.tierName)}</span>${model.isDefault ? '<span>Default model</span>' : ''}${model.available ? '' : '<span>History only</span>'}<span class="sample-count">${number(stats?.count ?? 0)} ${stats?.count === 1 ? 'sample' : 'samples'}</span></div></div>`;
+        const identity = `<div class="model-name"><strong><span class="series-dot" style="background:${color}"></span>${escapeHtml(model.displayName)}</strong><div class="model-meta">${model.isDefault ? '<span>Default model</span>' : ''}${model.available ? '' : '<span>History only</span>'}<span class="sample-count">${number(stats?.count ?? 0)} ${stats?.count === 1 ? 'sample' : 'samples'}</span></div></div>`;
         if (!stats) return `<article class="model-row unmeasured">${identity}<div class="waiting-label">Awaiting first observation</div></article>`;
         return `<article class="model-row">
           ${identity}
@@ -300,6 +302,9 @@
           if (action === 'unit') {
             unit = button.dataset.unit === 'second' ? 'second' : 'minute';
             render();
+          } else if (action === 'tier') {
+            tier = button.dataset.tier === 'Fast' ? 'Fast' : 'Standard';
+            render();
           } else if (action === 'refresh') {
             button.disabled = true;
             await refreshDashboard(false);
@@ -314,7 +319,7 @@
       async function initialize() {
         render();
         try {
-          await rpcRequest('ui/initialize', { appInfo: { name: 'tpm-observatory', version: '0.3.3' }, appCapabilities: {}, protocolVersion: '2026-01-26' });
+          await rpcRequest('ui/initialize', { appInfo: { name: 'tpm-observatory', version: '0.3.4' }, appCapabilities: {}, protocolVersion: '2026-01-26' });
           rpcNotify('ui/notifications/initialized', {});
           startPolling();
           setTimeout(() => { if (!dashboard) void refreshDashboard(false); }, 400);
