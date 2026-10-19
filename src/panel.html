@@ -194,7 +194,7 @@
             <article class="metric"><div class="metric-label">Observed turns</div><div class="metric-value">${number(dashboard.runCount)}</div><div class="metric-detail">${latest ? `Last sample ${shortDate(latest.measuredAt)}` : escapeHtml(dashboard.collector.message)}</div></article>
           </section>
           <section class="panel">
-            <div class="panel-head"><div><h2 class="panel-title"><span class="section-index">01</span> Throughput over time</h2><p class="panel-copy">Each point is a completed turn. Colours identify a model and speed tier.</p></div><span class="panel-tag">${unitLabel()} / observed</span></div>
+            <div class="panel-head"><div><h2 class="panel-title"><span class="section-index">01</span> Throughput over time</h2><p class="panel-copy">Dots are completed turns. Lines show a five-observation rolling average.</p></div><span class="panel-tag">${unitLabel()} / observed</span></div>
             ${chart(measured)}
           </section>
           <section class="panel">
@@ -230,6 +230,13 @@
         </article>`;
       }
 
+      function rollingAverage(samples) {
+        return samples.map((sample, index) => {
+          const window = samples.slice(Math.max(0, index - 4), index + 1);
+          return { ...sample, tpm: window.reduce((sum, point) => sum + point.tpm, 0) / window.length };
+        });
+      }
+
       function chart(models) {
         if (!models.length) return `<div class="empty"><div><div class="empty-mark">↗</div><strong>Waiting for completed turns</strong><p>Use Codex normally. New measurements will appear here in the background.</p></div></div>`;
         const points = models.flatMap((model) => model.samples.map((sample) => ({ ...sample, model: model.model })));
@@ -245,12 +252,12 @@
         }).join('');
         const lines = models.map((model) => {
           const color = seriesColor(model);
-          const path = model.samples.map((sample, pointIndex) => `${pointIndex ? 'L' : 'M'}${x(sample.measuredAt).toFixed(1)},${y(sample.tpm).toFixed(1)}`).join(' ');
+          const path = rollingAverage(model.samples).map((sample, pointIndex) => `${pointIndex ? 'L' : 'M'}${x(sample.measuredAt).toFixed(1)},${y(sample.tpm).toFixed(1)}`).join(' ');
           const circles = model.samples.map((sample) => `<circle cx="${x(sample.measuredAt)}" cy="${y(sample.tpm)}" r="3.4" fill="${color}" stroke="var(--surface)" stroke-width="2"><title>${escapeHtml(model.displayName)} · ${escapeHtml(model.tierName)}: ${metricNumber(sample.tpm)} ${unitLabel()} · ${shortDate(sample.measuredAt)}</title></circle>`).join('');
           return `<path d="${path}" fill="none" stroke="${color}" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>${circles}`;
         }).join('');
         const legend = models.map((model) => `<span class="legend-item"><span class="legend-swatch" style="background:${seriesColor(model)}"></span>${escapeHtml(model.displayName)} · ${escapeHtml(model.tierName)}</span>`).join('');
-        return `<div class="chart-wrap"><svg class="chart" viewBox="0 0 ${width} ${height}" role="img" aria-label="Model throughput over time in ${unitLabel()}">${grids}${lines}<text class="axis-label" x="${left}" y="${height - 10}">${shortDate(new Date(start).toISOString())}</text><text class="axis-label" x="${width - right}" y="${height - 10}" text-anchor="end">${shortDate(new Date(end).toISOString())}</text></svg></div><div class="legend">${legend}</div>`;
+        return `<div class="chart-wrap"><svg class="chart" viewBox="0 0 ${width} ${height}" role="img" aria-label="Model throughput observations and five-observation rolling averages in ${unitLabel()}">${grids}${lines}<text class="axis-label" x="${left}" y="${height - 10}">${shortDate(new Date(start).toISOString())}</text><text class="axis-label" x="${width - right}" y="${height - 10}" text-anchor="end">${shortDate(new Date(end).toISOString())}</text></svg></div><div class="legend">${legend}</div>`;
       }
 
       function applyResponse(response) {
