@@ -14,6 +14,7 @@ test('extracts active model TPM and the Fast service tier', () => {
       { type: 'turn_context', payload: { turn_id: 'turn-1', effort: 'high' } },
       item('turn-1', 'Reasoning', 1_000, 2_000),
       item('turn-1', 'AgentMessage', 2_000, 2_500),
+      item('turn-1', 'ContextCompaction', 2_500, 3_000),
       {
         type: 'token_usage_record',
         payload: {
@@ -34,9 +35,9 @@ test('extracts active model TPM and the Fast service tier', () => {
   );
   assert.equal(sample.serviceTier, 'priority');
   assert.equal(sample.effort, 'high');
-  assert.equal(sample.durationMs, 1_500);
+  assert.equal(sample.durationMs, 2_000);
   assert.equal(sample.turnDurationMs, 9_000);
-  assert.equal(sample.tpm, 12_000);
+  assert.equal(sample.tpm, 9_000);
   assert.equal(sample.source, 'observed');
 });
 

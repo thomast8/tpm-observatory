@@ -94,7 +94,7 @@ var SampleStore = class {
       LIMIT ?`).all(source, limit);
   }
   markTurn(turn) {
-    this.database.prepare(`INSERT OR REPLACE INTO turn_offsets (
+    this.database.prepare(`INSERT OR IGNORE INTO turn_offsets (
         session_id, turn_id, transcript_path, start_offset, model, created_at
       ) VALUES (?, ?, ?, ?, ?, ?)`).run(
       turn.sessionId,
@@ -160,7 +160,7 @@ function tokensPerMinute(outputTokens, durationMs) {
 }
 
 // src/telemetry.js
-var MODEL_ITEM_TYPES = /* @__PURE__ */ new Set(["Reasoning", "AgentMessage"]);
+var MODEL_ITEM_TYPES = /* @__PURE__ */ new Set(["Reasoning", "AgentMessage", "ContextCompaction"]);
 function parseTurnTelemetry(text, hook) {
   let effort = "unknown";
   let serviceTier = "default";

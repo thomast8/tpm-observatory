@@ -27,6 +27,14 @@ test('keeps turn offsets and collector health', () => {
     model: 'gpt-test',
     createdAt: '2026-10-16T10:00:00.000Z',
   });
+  store.markTurn({
+    sessionId: 'session-1',
+    turnId: 'turn-1',
+    transcriptPath: '/tmp/transcript.jsonl',
+    startOffset: 84,
+    model: 'gpt-test',
+    createdAt: '2026-10-16T10:01:00.000Z',
+  });
   assert.deepEqual({ ...store.getTurn('session-1', 'turn-1') }, {
     transcriptPath: '/tmp/transcript.jsonl',
     startOffset: 42,

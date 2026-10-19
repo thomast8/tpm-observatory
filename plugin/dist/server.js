@@ -37389,7 +37389,7 @@ var CodexTransport = class _CodexTransport {
     const transport = new _CodexTransport(child);
     try {
       await transport.request("initialize", {
-        clientInfo: { name: "tpm-observatory", title: "TPM Observatory", version: "0.3.2" },
+        clientInfo: { name: "tpm-observatory", title: "TPM Observatory", version: "0.3.3" },
         capabilities: { experimentalApi: true, requestAttestation: false }
       });
       transport.notify("initialized");
@@ -37656,7 +37656,7 @@ var SampleStore = class {
       LIMIT ?`).all(source, limit);
   }
   markTurn(turn) {
-    this.database.prepare(`INSERT OR REPLACE INTO turn_offsets (
+    this.database.prepare(`INSERT OR IGNORE INTO turn_offsets (
         session_id, turn_id, transcript_path, start_offset, model, created_at
       ) VALUES (?, ?, ?, ?, ?, ?)`).run(
       turn.sessionId,
@@ -37713,7 +37713,7 @@ var SampleStore = class {
 // package.json
 var package_default = {
   name: "tpm-observatory",
-  version: "0.3.2",
+  version: "0.3.3",
   private: true,
   type: "module",
   engines: {

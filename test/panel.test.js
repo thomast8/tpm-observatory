@@ -12,6 +12,7 @@ test('polls only while visible and refreshes when visibility returns', () => {
 });
 
 test('switches every throughput display between TPM and TPS', () => {
+  assert.match(panel, /let unit = 'second'/);
   assert.match(panel, /data-unit="minute"/);
   assert.match(panel, /data-unit="second"/);
   assert.match(panel, /tpm \/ 60/);
@@ -41,13 +42,18 @@ test('renders average, interval, median and range in both units with consistent 
     available: true, isDefault: false, latest: sample, samples: [sample],
     stats: { average: 1200, median: 1200, min: 600, max: 1800, count: 2, ci95Low: 900, ci95High: 1500 },
   };
+  const slowerModel = {
+    ...model,
+    seriesId: 'slow::default', model: 'slow', displayName: 'Slower', tierName: 'Standard',
+    stats: { ...model.stats, average: 600 },
+  };
   context.fixture = {
-    models: [model], bestSeries: model.seriesId, runCount: 2,
+    models: [slowerModel, model], bestSeries: model.seriesId, runCount: 2,
     collector: { state: 'active' }, measurement: 'Output per minute',
   };
   const observed = runInNewContext(`${script}\ndashboard = fixture; render();
-    const minuteView = app.innerHTML; unit = 'second'; render();
-    ({ minuteView, secondView: app.innerHTML, colour: seriesColor(fixture.models[0]) });`, context);
+    const secondView = app.innerHTML; unit = 'minute'; render();
+    ({ minuteView: app.innerHTML, secondView, colour: seriesColor(fixture.models[1]) });`, context);
   assert.match(observed.minuteView, /95% CI 900–1,500 · Median 1,200/);
   assert.match(observed.secondView, /95% CI 15–25 · Median 20/);
   assert.match(observed.secondView, /Min 10/);
@@ -55,6 +61,7 @@ test('renders average, interval, median and range in both units with consistent 
   assert.match(observed.secondView, /&lt;Test&gt;/);
   assert.ok(observed.secondView.includes(`stroke="${observed.colour}"`));
   assert.ok(observed.secondView.includes(`background:${observed.colour}`));
+  assert.ok(observed.secondView.indexOf('&lt;Test&gt;') < observed.secondView.indexOf('Slower'));
   assert.doesNotMatch(panel, /\.model-row .*display: none/);
 });
 

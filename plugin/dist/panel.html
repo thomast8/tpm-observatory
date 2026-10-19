@@ -135,7 +135,7 @@
       const app = document.querySelector('#app');
       const toast = document.querySelector('#toast');
       let dashboard = null;
-      let unit = 'minute';
+      let unit = 'second';
       let refreshInFlight = false;
       let pollTimer = null;
       let rpcId = 0;
@@ -166,7 +166,9 @@
           return;
         }
         const availableCount = new Set(dashboard.models.filter((model) => model.available).map((model) => model.model)).size;
-        const measured = dashboard.models.filter((model) => model.stats);
+        const measured = dashboard.models
+          .filter((model) => model.stats)
+          .toSorted((left, right) => right.stats.average - left.stats.average);
         const best = dashboard.models.find((model) => model.seriesId === dashboard.bestSeries);
         const latest = measured.map((model) => model.latest).filter(Boolean).toSorted((a, b) => b.measuredAt.localeCompare(a.measuredAt))[0];
         app.innerHTML = `
@@ -312,7 +314,7 @@
       async function initialize() {
         render();
         try {
-          await rpcRequest('ui/initialize', { appInfo: { name: 'tpm-observatory', version: '0.3.2' }, appCapabilities: {}, protocolVersion: '2026-01-26' });
+          await rpcRequest('ui/initialize', { appInfo: { name: 'tpm-observatory', version: '0.3.3' }, appCapabilities: {}, protocolVersion: '2026-01-26' });
           rpcNotify('ui/notifications/initialized', {});
           startPolling();
           setTimeout(() => { if (!dashboard) void refreshDashboard(false); }, 400);
