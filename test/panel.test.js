@@ -25,7 +25,8 @@ test('switches every throughput display between TPM and TPS', () => {
 });
 
 test('renders average, interval, median and range in both units with consistent series colour', () => {
-  const app = { innerHTML: '', clientWidth: 428, addEventListener() {} };
+  let click;
+  const app = { innerHTML: '', clientWidth: 428, addEventListener(event, handler) { if (event === 'click') click = handler; } };
   const toast = { textContent: '', classList: { add() {}, remove() {} } };
   const context = {
     document: {
@@ -48,7 +49,7 @@ test('renders average, interval, median and range in both units with consistent 
     stats: { ...model.stats, average: 600 },
   };
   context.fixture = {
-    models: [slowerModel, model], bestSeries: model.seriesId, runCount: 2,
+    models: [slowerModel, model, { ...model, seriesId: 'ultra::ultra_fast', model: 'ultra', displayName: 'Ultra model', tierName: 'Ultra Fast' }], bestSeries: model.seriesId, runCount: 2,
     collector: { state: 'active' }, measurement: 'Output per minute',
   };
   const observed = runInNewContext(`${script}\ndashboard = fixture; tier = 'Fast'; render();
@@ -65,6 +66,14 @@ test('renders average, interval, median and range in both units with consistent 
   assert.ok(observed.secondView.includes(`background:${observed.colour}`));
   assert.doesNotMatch(observed.secondView, />Slower</);
   assert.doesNotMatch(panel, /\.model-row .*display: none/);
+  assert.ok(observed.secondView.indexOf('data-unit="second"') < observed.secondView.indexOf('data-unit="minute"'));
+  click({ target: { closest: () => ({ dataset: { action: 'tier', tier: 'Ultra Fast' } }) } });
+  assert.match(app.innerHTML, /data-tier="Ultra Fast" aria-pressed="true"/);
+  assert.match(app.innerHTML, />Ultra model</);
+  assert.doesNotMatch(app.innerHTML, />&lt;Test&gt;</);
+  click({ target: { closest: () => ({ dataset: { action: 'tier', tier: 'Standard' } }) } });
+  assert.match(app.innerHTML, />Slower</);
+  assert.doesNotMatch(app.innerHTML, />Ultra model</);
 });
 
 test('uses one speed-tier toggle for the whole model list', () => {

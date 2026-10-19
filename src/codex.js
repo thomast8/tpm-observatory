@@ -29,7 +29,7 @@ export class CodexTransport {
     const transport = new CodexTransport(child);
     try {
       await transport.request('initialize', {
-        clientInfo: { name: 'tpm-observatory', title: 'TPM Observatory', version: '1.0.0' },
+        clientInfo: { name: 'tpm-observatory', title: 'Am I Being Throttled?', version: '1.0.0' },
         capabilities: { experimentalApi: true, requestAttestation: false },
       });
       transport.notify('initialized');
@@ -96,7 +96,7 @@ export class CodexTransport {
       this.write({
         jsonrpc: '2.0',
         id: message.id,
-        error: { code: -32000, message: 'TPM Observatory does not accept server requests' },
+        error: { code: -32000, message: 'Am I Being Throttled? does not accept server requests' },
       });
       return;
     }

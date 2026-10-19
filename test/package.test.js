@@ -12,11 +12,14 @@ test('publishes a portable plugin from the repository marketplace', async () => 
     readJson('../plugin/mcp.json'),
   ]);
   assert.equal(marketplace.name, 'tpm-observatory');
+  assert.equal(marketplace.interface.displayName, 'Am I Being Throttled?');
   assert.deepEqual(marketplace.plugins.map((plugin) => plugin.name), ['tpm-observatory']);
   assert.equal(marketplace.plugins[0].source.path, './plugin');
   assert.equal(portable.$schema, 'https://agent-plugins.org/schemas/1.0.0/plugin.schema.json');
   assert.equal(mcp.$schema, 'https://agent-plugins.org/schemas/1.0.0/mcp.schema.json');
   assert.equal(portable.name, legacy.name);
+  assert.equal(portable.extensions['com.openai'].interface.displayName, 'Am I Being Throttled?');
+  assert.equal(legacy.interface.displayName, 'Am I Being Throttled?');
   assert.equal(portable.version, legacy.version);
   assert.equal(portable.license, 'MIT');
   assert.equal(portable.repository, 'https://github.com/thomast8/tpm-observatory');

@@ -1,7 +1,7 @@
 {
   "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
   "name": "tpm-observatory",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Passively track observed Codex model throughput in a local dashboard.",
   "author": {
     "name": "Thomas Tiotto",
@@ -20,14 +20,14 @@
   "extensions": {
     "com.openai": {
       "interface": {
-        "displayName": "TPM Observatory",
+        "displayName": "Am I Being Throttled?",
         "shortDescription": "Track Codex model throughput automatically.",
         "longDescription": "Passively record completed Codex turns and compare averages, 95% confidence intervals, minima and maxima by model and speed tier in a local dashboard.",
         "developerName": "Thomas Tiotto",
         "category": "Developer tools",
         "websiteURL": "https://github.com/thomast8/tpm-observatory",
         "defaultPrompt": [
-          "Open TPM Observatory."
+          "Open the Am I Being Throttled? dashboard."
         ],
         "logo": "./assets/tpm-observatory.svg",
         "composerIcon": "./assets/tpm-observatory.svg"
