@@ -88,6 +88,7 @@
       .range { position: relative; height: 22px; margin-top: 7px; }
       .range-line { position: absolute; left: 0; right: 0; top: 10px; height: 2px; background: var(--line); }
       .range-fill { position: absolute; top: 9px; height: 4px; border-radius: 2px; }
+      .confidence-fill { position: absolute; top: 6px; height: 10px; border-radius: 5px; opacity: .28; }
       .range-point { position: absolute; top: 6px; width: 10px; height: 10px; border: 2px solid var(--surface-solid); border-radius: 50%; transform: translateX(-50%); }
       .range-labels { display: flex; justify-content: space-between; color: var(--muted); font: 10px ui-monospace, monospace; gap: 10px; }
       .waiting-label { grid-column: 2 / -1; color: var(--muted); font-size: 11px; }
@@ -207,7 +208,14 @@
       function modelRow(model) {
         const stats = model.stats;
         const low = 8, high = 92;
-        const average = stats && stats.max > stats.min ? low + (high - low) * (stats.average - stats.min) / (stats.max - stats.min) : 50;
+        const domainMin = stats ? Math.min(stats.min, stats.ci95Low ?? stats.min) : 0;
+        const domainMax = stats ? Math.max(stats.max, stats.ci95High ?? stats.max) : 0;
+        const position = (value) => domainMax > domainMin ? low + (high - low) * (value - domainMin) / (domainMax - domainMin) : 50;
+        const observedLow = position(stats?.min);
+        const observedHigh = position(stats?.max);
+        const average = position(stats?.average);
+        const confidenceLow = stats?.ci95Low == null ? null : position(stats.ci95Low);
+        const confidenceHigh = stats?.ci95High == null ? null : position(stats.ci95High);
         const color = seriesColor(model);
         const identity = `<div class="model-name"><strong><span class="series-dot" style="background:${color}"></span>${escapeHtml(model.displayName)}</strong><div class="model-meta">${model.isDefault ? '<span>Default model</span>' : ''}${model.available ? '' : '<span>History only</span>'}<span class="sample-count">${number(stats?.count ?? 0)} ${stats?.count === 1 ? 'sample' : 'samples'}</span></div></div>`;
         if (!stats) return `<article class="model-row unmeasured">${identity}<div class="waiting-label">Awaiting first observation</div></article>`;
@@ -218,7 +226,7 @@
             <div class="latest"><div class="stat-label">Latest · ${unitLabel()}</div><div class="stat-value">${metricNumber(model.latest?.tpm)}</div></div>
             <div class="confidence">95% CI ${stats.ci95Low == null ? '· needs 2 samples' : `${metricNumber(stats.ci95Low)}–${metricNumber(stats.ci95High)}`} · Median ${metricNumber(stats.median)}</div>
           </div>
-          <div class="range-cell"><div class="stat-label">Observed range · ${unitLabel()}</div><div class="range" aria-hidden="true"><span class="range-line"></span><span class="range-fill" style="left:${low}%;width:${stats.max > stats.min ? high - low : 0}%;background:${color}"></span><span class="range-point" style="left:${average}%;background:${color}"></span></div><div class="range-labels"><span>Min ${metricNumber(stats?.min)}</span><span>Max ${metricNumber(stats?.max)}</span></div></div>
+          <div class="range-cell"><div class="stat-label">Observed range · ${unitLabel()}</div><div class="range" role="img" aria-label="Observed range ${metricNumber(stats.min)} to ${metricNumber(stats.max)}; ${stats.ci95Low == null ? '95% confidence interval needs 2 samples' : `95% confidence interval ${metricNumber(stats.ci95Low)} to ${metricNumber(stats.ci95High)}`}"><span class="range-line"></span>${confidenceLow == null ? '' : `<span class="confidence-fill" style="left:${confidenceLow}%;width:${confidenceHigh - confidenceLow}%;background:${color}"></span>`}<span class="range-fill" style="left:${observedLow}%;width:${observedHigh - observedLow}%;background:${color}"></span><span class="range-point" style="left:${average}%;background:${color}"></span></div><div class="range-labels"><span>Min ${metricNumber(stats?.min)}</span><span>Max ${metricNumber(stats?.max)}</span></div></div>
         </article>`;
       }
 
@@ -319,7 +327,7 @@
       async function initialize() {
         render();
         try {
-          await rpcRequest('ui/initialize', { appInfo: { name: 'tpm-observatory', version: '0.3.4' }, appCapabilities: {}, protocolVersion: '2026-01-26' });
+          await rpcRequest('ui/initialize', { appInfo: { name: 'tpm-observatory', version: '0.3.5' }, appCapabilities: {}, protocolVersion: '2026-01-26' });
           rpcNotify('ui/notifications/initialized', {});
           startPolling();
           setTimeout(() => { if (!dashboard) void refreshDashboard(false); }, 400);
