@@ -55,6 +55,8 @@ test('renders average, interval, median and range in both units with consistent 
     const secondView = app.innerHTML; unit = 'minute'; render();
     ({ minuteView: app.innerHTML, secondView, colour: seriesColor(fixture.models[1]) });`, context);
   assert.match(observed.minuteView, /95% CI 900–1,500 · Median 1,200/);
+  assert.match(observed.minuteView, /aria-label="Observed range 600 to 1,800; 95% confidence interval 900 to 1,500"/);
+  assert.match(observed.minuteView, /class="confidence-fill" style="left:29%;width:42%;background:/);
   assert.match(observed.secondView, /95% CI 15–25 · Median 20/);
   assert.match(observed.secondView, /Min 10/);
   assert.match(observed.secondView, /Max 30/);

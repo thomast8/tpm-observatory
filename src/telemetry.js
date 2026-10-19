@@ -9,7 +9,8 @@ export function parseTurnTelemetry(text, hook) {
   let targetStarted = false;
   let usage = null;
   let completion = null;
-  let activeDurationMs = 0;
+  let modelItemDurationMs = 0;
+  const excludedIntervals = [];
   for (const line of text.split('\n')) {
     if (!line.trim()) continue;
     let record;
@@ -35,15 +36,19 @@ export function parseTurnTelemetry(text, hook) {
     } else if (record.type === 'token_usage_record') {
       usage = validUsage(payload.turn_token_usage) ? payload.turn_token_usage : usage;
     } else if (record.type === 'event_msg' && payload.type === 'item_completed') {
-      if (MODEL_ITEM_TYPES.has(payload.item?.type)) {
-        const duration = payload.completed_at_ms - payload.started_at_ms;
-        if (Number.isSafeInteger(duration) && duration > 0) activeDurationMs += duration;
-      }
+      const interval = validInterval(payload.started_at_ms, payload.completed_at_ms);
+      if (!interval) continue;
+      if (MODEL_ITEM_TYPES.has(payload.item?.type)) modelItemDurationMs += interval[1] - interval[0];
+      else excludedIntervals.push(interval);
     } else if (record.type === 'event_msg' && payload.type === 'task_complete') {
       completion = payload;
       targetStarted = false;
     }
   }
+  const turnDurationMs = positiveInteger(completion?.duration_ms) ? completion.duration_ms : null;
+  const activeDurationMs = turnDurationMs
+    ? turnDurationMs - mergedDuration(excludedIntervals)
+    : modelItemDurationMs;
   if (!completion || !usage || activeDurationMs <= 0) return null;
   return {
     model: hook.model,
@@ -52,7 +57,7 @@ export function parseTurnTelemetry(text, hook) {
     serviceTier,
     measuredAt: recordTime(completion.completed_at),
     durationMs: activeDurationMs,
-    turnDurationMs: positiveInteger(completion.duration_ms) ? completion.duration_ms : null,
+    turnDurationMs,
     outputTokens: usage.output_tokens,
     reasoningOutputTokens: usage.reasoning_output_tokens,
     tpm: tokensPerMinute(usage.output_tokens, activeDurationMs),
@@ -60,6 +65,27 @@ export function parseTurnTelemetry(text, hook) {
     sessionId: hook.sessionId,
     turnId: hook.turnId,
   };
+}
+
+function validInterval(start, end) {
+  return Number.isSafeInteger(start) && Number.isSafeInteger(end) && end > start
+    ? [start, end]
+    : null;
+}
+
+function mergedDuration(intervals) {
+  const sorted = intervals.toSorted((left, right) => left[0] - right[0]);
+  let total = 0;
+  let current = null;
+  for (const interval of sorted) {
+    if (!current || interval[0] > current[1]) {
+      if (current) total += current[1] - current[0];
+      current = [...interval];
+    } else {
+      current[1] = Math.max(current[1], interval[1]);
+    }
+  }
+  return current ? total + current[1] - current[0] : total;
 }
 
 function normalizeTier(value) {

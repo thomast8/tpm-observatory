@@ -35,9 +35,9 @@ test('extracts active model TPM and the Fast service tier', () => {
   );
   assert.equal(sample.serviceTier, 'priority');
   assert.equal(sample.effort, 'high');
-  assert.equal(sample.durationMs, 2_000);
+  assert.equal(sample.durationMs, 9_000);
   assert.equal(sample.turnDurationMs, 9_000);
-  assert.equal(sample.tpm, 9_000);
+  assert.equal(sample.tpm, 2_000);
   assert.equal(sample.source, 'observed');
 });
 
@@ -60,12 +60,33 @@ test('keeps Ultra Fast distinct and ignores malformed or foreign records', () =>
     hook,
   );
   assert.equal(sample.serviceTier, 'ultra_fast');
-  assert.equal(sample.durationMs, 1_000);
-  assert.equal(sample.tpm, 6_000);
+  assert.equal(sample.durationMs, 1_500);
+  assert.equal(sample.tpm, 4_000);
 });
 
 test('fails closed until completion and final token usage are present', () => {
   assert.equal(parseTurnTelemetry(lines(item('turn-1', 'AgentMessage', 0, 1_000)), hook), null);
+});
+
+test('subtracts overlapping tool execution from the turn duration once', () => {
+  const sample = parseTurnTelemetry(
+    lines(
+      event('task_started', { turn_id: 'turn-1' }),
+      item('turn-1', 'McpToolCall', 1_000, 4_000),
+      item('turn-1', 'CommandExecution', 2_000, 5_000),
+      {
+        type: 'token_usage_record',
+        payload: {
+          turn_id: 'turn-1',
+          turn_token_usage: { output_tokens: 600, reasoning_output_tokens: 100 },
+        },
+      },
+      event('task_complete', { turn_id: 'turn-1', completed_at: 1_760_000_000, duration_ms: 10_000 }),
+    ),
+    hook,
+  );
+  assert.equal(sample.durationMs, 6_000);
+  assert.equal(sample.tpm, 6_000);
 });
 
 test('uses safe defaults and the last valid telemetry record', () => {
