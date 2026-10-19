@@ -19,7 +19,7 @@ test('switches every throughput display between TPM and TPS', () => {
   assert.match(panel, /metricNumber\(stats\?\.average\)/);
   assert.match(panel, /metricNumber\(stats\?\.min\)/);
   assert.match(panel, /metricNumber\(stats\?\.max\)/);
-  assert.match(panel, /Reasoning efforts are pooled within each model and speed tier/);
+  assert.match(panel, /Reasoning efforts are pooled within each model/);
   assert.doesNotMatch(panel, /model\.effortLabel/);
   assert.doesNotMatch(panel, /tpm_benchmark/);
 });
@@ -51,7 +51,7 @@ test('renders average, interval, median and range in both units with consistent 
     models: [slowerModel, model], bestSeries: model.seriesId, runCount: 2,
     collector: { state: 'active' }, measurement: 'Output per minute',
   };
-  const observed = runInNewContext(`${script}\ndashboard = fixture; render();
+  const observed = runInNewContext(`${script}\ndashboard = fixture; tier = 'Fast'; render();
     const secondView = app.innerHTML; unit = 'minute'; render();
     ({ minuteView: app.innerHTML, secondView, colour: seriesColor(fixture.models[1]) });`, context);
   assert.match(observed.minuteView, /95% CI 900–1,500 · Median 1,200/);
@@ -61,7 +61,15 @@ test('renders average, interval, median and range in both units with consistent 
   assert.match(observed.secondView, /&lt;Test&gt;/);
   assert.ok(observed.secondView.includes(`stroke="${observed.colour}"`));
   assert.ok(observed.secondView.includes(`background:${observed.colour}`));
-  assert.ok(observed.secondView.indexOf('&lt;Test&gt;') < observed.secondView.indexOf('Slower'));
+  assert.doesNotMatch(observed.secondView, />Slower</);
   assert.doesNotMatch(panel, /\.model-row .*display: none/);
+});
+
+test('uses one speed-tier toggle for the whole model list', () => {
+  assert.match(panel, /aria-label="Speed tier"/);
+  assert.match(panel, /data-tier="Standard"/);
+  assert.match(panel, /data-tier="Fast"/);
+  assert.match(panel, /model\.tierName === tier/);
+  assert.doesNotMatch(panel, /class="tier tier-/);
 });
 
