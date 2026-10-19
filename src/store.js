@@ -97,7 +97,7 @@ export class SampleStore {
 
   markTurn(turn) {
     this.database
-      .prepare(`INSERT OR REPLACE INTO turn_offsets (
+      .prepare(`INSERT OR IGNORE INTO turn_offsets (
         session_id, turn_id, transcript_path, start_offset, model, created_at
       ) VALUES (?, ?, ?, ?, ?, ?)`)
       .run(

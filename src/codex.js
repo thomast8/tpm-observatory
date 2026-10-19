@@ -29,7 +29,7 @@ export class CodexTransport {
     const transport = new CodexTransport(child);
     try {
       await transport.request('initialize', {
-        clientInfo: { name: 'tpm-observatory', title: 'TPM Observatory', version: '0.3.2' },
+        clientInfo: { name: 'tpm-observatory', title: 'TPM Observatory', version: '0.3.3' },
         capabilities: { experimentalApi: true, requestAttestation: false },
       });
       transport.notify('initialized');

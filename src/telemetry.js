@@ -1,6 +1,6 @@
 import { tokensPerMinute } from './stats.js';
 
-const MODEL_ITEM_TYPES = new Set(['Reasoning', 'AgentMessage']);
+const MODEL_ITEM_TYPES = new Set(['Reasoning', 'AgentMessage', 'ContextCompaction']);
 
 export function parseTurnTelemetry(text, hook) {
   let effort = 'unknown';

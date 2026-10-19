@@ -1,6 +1,6 @@
 {
   "name": "tpm-observatory",
-  "version": "0.3.2",
+  "version": "0.3.3",
   "description": "Passively track observed Codex model tokens per minute over time.",
   "hooks": "./hooks/hooks.json",
   "mcpServers": "./.mcp.json",
