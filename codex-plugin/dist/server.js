@@ -37725,7 +37725,7 @@ var SampleStore = class {
 // package.json
 var package_default = {
   name: "tpm-observatory",
-  version: "1.0.4",
+  version: "1.0.5",
   private: true,
   type: "module",
   engines: {

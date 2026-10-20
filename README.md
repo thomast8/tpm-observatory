@@ -41,5 +41,8 @@ just qa-mcp
 ```
 
 Source lives in `src/`; `npm run build` writes the installable bundle to `plugin/`.
+
+The Codex-compatible package uses a relative working directory and derives its data directory from the installed cache, matching Ultra Code's desktop launcher. Codex's legacy MCP loader does not expand `${PLUGIN_ROOT}` in launch settings. `just qa-mcp` exercises the packaged launcher in an isolated cache layout with a real Codex model-catalogue read.
+
 The Codex marketplace installs the generated `codex-plugin/` compatibility bundle because current Codex releases suppress lifecycle hooks in packages with a root `plugin.json`. The portable package remains in `plugin/`.
 
