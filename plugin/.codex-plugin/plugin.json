@@ -1,6 +1,6 @@
 {
   "name": "tpm-observatory",
-  "version": "1.0.3",
+  "version": "1.0.4",
   "description": "Passively track observed Codex model tokens per minute over time.",
   "author": {
     "name": "Thomas Tiotto",

@@ -13,7 +13,7 @@ codex plugin add tpm-observatory@tpm-observatory
 
 Start a new Codex chat after installation. Open the dashboard by asking Codex to use Am I Being Throttled? or by invoking its `tpm_open` tool.
 
-Codex will ask you to review and trust the bundled hooks. The hooks are required for automatic collection and run only when a prompt starts and a turn stops.
+Codex will ask you to review and trust the bundled hooks. They record prompt starts and completed turns, with synchronous session-end collection for short-lived `codex exec` runs. Ephemeral runs have no transcript and are not recorded.
 
 ## Measurement
 

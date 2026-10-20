@@ -43,9 +43,15 @@ test('keeps turn offsets and collector health', () => {
     startOffset: 42,
     model: 'gpt-test',
   });
+  store.markTurn({ sessionId: 'session-1', turnId: 'turn-2', transcriptPath: '/tmp/transcript.jsonl', startOffset: 100, model: 'gpt-next', createdAt: '2026-10-16T10:02:00.000Z' });
+  store.markTurn({ sessionId: 'other-session', turnId: 'other-turn', transcriptPath: '/tmp/other.jsonl', startOffset: 0, model: 'gpt-other', createdAt: '2026-10-16T10:03:00.000Z' });
+  assert.deepEqual({ ...store.getLastTurn('session-1') }, { turnId: 'turn-2', model: 'gpt-next' });
+  assert.equal(store.getLastTurn('unmarked'), undefined);
   assert.equal(store.getCollectorStatus(), undefined);
   store.setCollectorStatus('active', 'Collecting.', '2026-10-16T10:01:00.000Z');
   store.setCollectorStatus('waiting', 'Waiting.');
+  assert.equal(store.getCollectorStatus().lastSampleAt, '2026-10-16T10:01:00.000Z');
+  store.setCollectorStatus('active', 'An older session closed.', '2026-10-15T10:01:00.000Z');
   assert.equal(store.getCollectorStatus().lastSampleAt, '2026-10-16T10:01:00.000Z');
   store.close();
 });

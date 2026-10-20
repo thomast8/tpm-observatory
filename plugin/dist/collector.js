@@ -113,11 +113,23 @@ var SampleStore = class {
       FROM turn_offsets
       WHERE session_id = ? AND turn_id = ?`).get(sessionId, turnId);
   }
+  getLastTurn(sessionId) {
+    return this.database.prepare(`SELECT turn_id AS turnId, model
+        FROM turn_offsets WHERE session_id = ?
+        ORDER BY created_at DESC, rowid DESC LIMIT 1`).get(sessionId);
+  }
   setCollectorStatus(state, message, lastSampleAt = null) {
-    const previous = this.getCollectorStatus();
-    this.database.prepare(`INSERT OR REPLACE INTO collector_status (
+    this.database.prepare(`INSERT INTO collector_status (
         id, state, message, last_attempt_at, last_sample_at
-      ) VALUES (1, ?, ?, ?, ?)`).run(state, message, (/* @__PURE__ */ new Date()).toISOString(), lastSampleAt ?? previous?.lastSampleAt ?? null);
+      ) VALUES (1, ?, ?, ?, ?)
+      ON CONFLICT(id) DO UPDATE SET
+        state = excluded.state,
+        message = excluded.message,
+        last_attempt_at = excluded.last_attempt_at,
+        last_sample_at = CASE
+          WHEN excluded.last_sample_at > collector_status.last_sample_at
+            OR collector_status.last_sample_at IS NULL
+          THEN excluded.last_sample_at ELSE collector_status.last_sample_at END`).run(state, message, (/* @__PURE__ */ new Date()).toISOString(), lastSampleAt);
   }
   getCollectorStatus() {
     return this.database.prepare(`SELECT
@@ -256,11 +268,15 @@ function recordTime(unixSeconds) {
 // src/collector.js
 var MAX_TURN_BYTES = 64 * 1024 * 1024;
 async function runCollector(action, input, dataDir) {
-  const hook = validateInput(input);
+  const hook = validateInput(input, action);
   const store = new SampleStore(resolve(dataDir, "samples.sqlite"));
   try {
     if (action === "mark") return await markTurn(store, hook);
     if (action === "collect") return await collectTurn(store, hook);
+    if (action === "finalize") {
+      const turn = store.getLastTurn(hook.sessionId);
+      return turn ? await collectTurn(store, { ...hook, ...turn }) : null;
+    }
     throw new Error("Unknown collector action");
   } catch (error) {
     store.setCollectorStatus("error", "Background collection needs attention.");
@@ -319,12 +335,13 @@ async function readTurnChunk(path, requestedOffset) {
   }
   return buffer.toString("utf8");
 }
-function validateInput(input) {
+function validateInput(input, action) {
   if (!input || typeof input !== "object") throw new Error("Hook input is unavailable");
   const sessionId = requiredString(input.session_id, "session id", 256);
+  const transcriptPath = input.transcript_path === null ? null : requiredString(input.transcript_path, "transcript path", 4096);
+  if (action === "finalize") return { sessionId, transcriptPath };
   const turnId = requiredString(input.turn_id, "turn id", 256);
   const model = requiredString(input.model, "model", 256);
-  const transcriptPath = input.transcript_path === null ? null : requiredString(input.transcript_path, "transcript path", 4096);
   return { sessionId, turnId, model, transcriptPath };
 }
 function requiredString(value, label, maximum) {

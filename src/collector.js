@@ -7,11 +7,15 @@ import { parseTurnTelemetry } from './telemetry.js';
 const MAX_TURN_BYTES = 64 * 1024 * 1024;
 
 export async function runCollector(action, input, dataDir) {
-  const hook = validateInput(input);
+  const hook = validateInput(input, action);
   const store = new SampleStore(resolve(dataDir, 'samples.sqlite'));
   try {
     if (action === 'mark') return await markTurn(store, hook);
     if (action === 'collect') return await collectTurn(store, hook);
+    if (action === 'finalize') {
+      const turn = store.getLastTurn(hook.sessionId);
+      return turn ? await collectTurn(store, { ...hook, ...turn }) : null;
+    }
     throw new Error('Unknown collector action');
   } catch (error) {
     store.setCollectorStatus('error', 'Background collection needs attention.');
@@ -78,15 +82,16 @@ async function readTurnChunk(path, requestedOffset) {
   return buffer.toString('utf8');
 }
 
-function validateInput(input) {
+function validateInput(input, action) {
   if (!input || typeof input !== 'object') throw new Error('Hook input is unavailable');
   const sessionId = requiredString(input.session_id, 'session id', 256);
-  const turnId = requiredString(input.turn_id, 'turn id', 256);
-  const model = requiredString(input.model, 'model', 256);
   const transcriptPath =
     input.transcript_path === null
       ? null
       : requiredString(input.transcript_path, 'transcript path', 4_096);
+  if (action === 'finalize') return { sessionId, transcriptPath };
+  const turnId = requiredString(input.turn_id, 'turn id', 256);
+  const model = requiredString(input.model, 'model', 256);
   return { sessionId, turnId, model, transcriptPath };
 }
 
