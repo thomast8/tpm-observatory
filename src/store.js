@@ -130,12 +130,19 @@ export class SampleStore {
   }
 
   setCollectorStatus(state, message, lastSampleAt = null) {
-    const previous = this.getCollectorStatus();
     this.database
-      .prepare(`INSERT OR REPLACE INTO collector_status (
+      .prepare(`INSERT INTO collector_status (
         id, state, message, last_attempt_at, last_sample_at
-      ) VALUES (1, ?, ?, ?, ?)`)
-      .run(state, message, new Date().toISOString(), lastSampleAt ?? previous?.lastSampleAt ?? null);
+      ) VALUES (1, ?, ?, ?, ?)
+      ON CONFLICT(id) DO UPDATE SET
+        state = excluded.state,
+        message = excluded.message,
+        last_attempt_at = excluded.last_attempt_at,
+        last_sample_at = CASE
+          WHEN excluded.last_sample_at > collector_status.last_sample_at
+            OR collector_status.last_sample_at IS NULL
+          THEN excluded.last_sample_at ELSE collector_status.last_sample_at END`)
+      .run(state, message, new Date().toISOString(), lastSampleAt);
   }
 
   getCollectorStatus() {

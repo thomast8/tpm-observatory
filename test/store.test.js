@@ -51,6 +51,8 @@ test('keeps turn offsets and collector health', () => {
   store.setCollectorStatus('active', 'Collecting.', '2026-10-16T10:01:00.000Z');
   store.setCollectorStatus('waiting', 'Waiting.');
   assert.equal(store.getCollectorStatus().lastSampleAt, '2026-10-16T10:01:00.000Z');
+  store.setCollectorStatus('active', 'An older session closed.', '2026-10-15T10:01:00.000Z');
+  assert.equal(store.getCollectorStatus().lastSampleAt, '2026-10-16T10:01:00.000Z');
   store.close();
 });
 
