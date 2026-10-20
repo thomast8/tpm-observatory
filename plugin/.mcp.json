@@ -1,6 +1,6 @@
 {
   "mcpServers": {
-    "tpm-observatory-1-0-2": {
+    "tpm-observatory-1-0-3": {
       "command": "node",
       "args": [
         "${PLUGIN_ROOT}/dist/server.js"

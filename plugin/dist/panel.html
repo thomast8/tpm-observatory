@@ -195,7 +195,7 @@
           </section>
           <section class="panel">
             <div class="panel-head"><div><h2 class="panel-title"><span class="section-index">01</span> Throughput over time</h2><p class="panel-copy">Dots are completed turns. Lines show a five-observation rolling average.</p></div><span class="panel-tag">${unitLabel()} / observed</span></div>
-            ${chart(measured)}
+            ${chart(comparedMeasured)}
           </section>
           <section class="panel">
             <div class="panel-head"><div><h2 class="panel-title"><span class="section-index">02</span> Model comparison</h2><p class="panel-copy">Reasoning efforts are pooled within each model. The interval estimates the mean.</p></div><div class="panel-controls"><div class="unit-toggle" role="group" aria-label="Speed tier"><button class="unit-button ${tier === 'Standard' ? 'active' : ''}" data-action="tier" data-tier="Standard" aria-pressed="${tier === 'Standard'}">Standard</button><button class="unit-button ${tier === 'Fast' ? 'active' : ''}" data-action="tier" data-tier="Fast" aria-pressed="${tier === 'Fast'}">Fast</button><button class="unit-button ${tier === 'Ultra Fast' ? 'active' : ''}" data-action="tier" data-tier="Ultra Fast" aria-pressed="${tier === 'Ultra Fast'}">Ultra Fast</button></div><span class="panel-tag">95% confidence</span></div></div>

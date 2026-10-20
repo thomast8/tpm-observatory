@@ -78,6 +78,11 @@ test('renders average, interval, median and range in both units with consistent 
   assert.match(observed.secondView, /&lt;Test&gt;/);
   assert.ok(observed.secondView.includes(`stroke="${observed.colour}"`));
   assert.ok(observed.secondView.includes(`background:${observed.colour}`));
+  const graph = (html) => html.split('Throughput over time')[1].split('Model comparison')[0];
+  assert.doesNotMatch(graph(observed.secondView), /Slower|Ultra model/);
+  assert.match(graph(observed.secondView), /&lt;Test&gt; · Fast: 20 TPS/);
+  assert.match(graph(observed.minuteView), /&lt;Test&gt; · Fast: 1,200 TPM/);
+  assert.match(graph(observed.minuteView), /averages in TPM/);
   assert.doesNotMatch(observed.secondView, />Slower</);
   assert.doesNotMatch(panel, /\.model-row .*display: none/);
   assert.ok(observed.secondView.indexOf('data-unit="second"') < observed.secondView.indexOf('data-unit="minute"'));
@@ -85,9 +90,17 @@ test('renders average, interval, median and range in both units with consistent 
   assert.match(app.innerHTML, /data-tier="Ultra Fast" aria-pressed="true"/);
   assert.match(app.innerHTML, />Ultra model</);
   assert.doesNotMatch(app.innerHTML, />&lt;Test&gt;</);
+  assert.match(graph(app.innerHTML), /Ultra model · Ultra Fast: 1,200 TPM/);
+  assert.doesNotMatch(graph(app.innerHTML), /Slower|&lt;Test&gt;/);
   click({ target: { closest: () => ({ dataset: { action: 'tier', tier: 'Standard' } }) } });
   assert.match(app.innerHTML, />Slower</);
   assert.doesNotMatch(app.innerHTML, />Ultra model</);
+  assert.match(graph(app.innerHTML), /Slower · Standard: 1,200 TPM/);
+  assert.doesNotMatch(graph(app.innerHTML), /Ultra model|&lt;Test&gt;/);
+  context.fixture.models[2].stats = null;
+  click({ target: { closest: () => ({ dataset: { action: 'tier', tier: 'Ultra Fast' } }) } });
+  assert.match(graph(app.innerHTML), /Waiting for completed turns/);
+  assert.doesNotMatch(graph(app.innerHTML), /class="chart"|Slower|&lt;Test&gt;/);
 });
 
 test('uses one speed-tier toggle for the whole model list', () => {
