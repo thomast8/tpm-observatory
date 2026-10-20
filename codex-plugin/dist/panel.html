@@ -1,0 +1,353 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Am I Being Throttled?</title>
+    <style>
+      :root {
+        color-scheme: light dark;
+        --bg: #f3f4ef; --surface: #fafbf7; --surface-solid: #fff;
+        --surface-soft: #e9ede6; --ink: #182b26; --muted: #62746c;
+        --line: #dce3d9; --accent: #087b5b; --accent-soft: #ddf0e4;
+        --orange: #b65c28; --green: #087b5b;
+      }
+      @media (prefers-color-scheme: dark) {
+        :root {
+          --bg: #101b18; --surface: #15231e; --surface-solid: #1a2b25;
+          --surface-soft: #21382e; --ink: #ecf3e8; --muted: #9dad9f;
+          --line: #2c4136; --accent: #a7e6b1; --accent-soft: #294633;
+          --orange: #e6a67b; --green: #a7e6b1;
+        }
+      }
+      * { box-sizing: border-box; }
+      html, body { min-width: 280px; min-height: 100%; }
+      body {
+        margin: 0; background: var(--bg); color: var(--ink);
+        font-family: Inter, ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+        font-size: 14px; font-variant-numeric: tabular-nums;
+        -webkit-font-smoothing: antialiased;
+      }
+      button { font: inherit; }
+      button:focus-visible { outline: 3px solid var(--accent); outline-offset: 3px; }
+      .shell { width: min(100%, 1120px); margin: 0 auto; padding: 28px; }
+      .topbar { display: flex; align-items: center; justify-content: space-between; gap: 20px; margin-bottom: 24px; }
+      .eyebrow, .metric-label, .stat-label, .section-index { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+      .eyebrow { display: flex; align-items: center; gap: 8px; margin: 0 0 12px; color: var(--accent); font-size: 10px; font-weight: 650; letter-spacing: .11em; text-transform: uppercase; }
+      .brand-mark { width: 22px; height: 22px; }
+      h1 { margin: 0; font-size: clamp(25px, 4vw, 34px); line-height: 1.15; letter-spacing: -.05em; font-weight: 650; }
+      .subtitle { margin: 8px 0 0; color: var(--muted); font-size: 12px; line-height: 1.5; }
+      .actions { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; justify-content: flex-end; }
+      .button { min-height: 40px; border: 1px solid var(--line); border-radius: 8px; padding: 9px 13px; background: var(--surface); color: var(--ink); cursor: pointer; font-size: 11px; font-weight: 600; }
+      .button:hover:not(:disabled) { background: var(--surface-soft); }
+      .button:disabled { cursor: wait; opacity: .48; }
+      .collector-state { display: inline-flex; align-items: center; gap: 7px; color: var(--muted); font: 10px ui-monospace, monospace; white-space: nowrap; }
+      .dot { width: 6px; height: 6px; flex: none; border-radius: 50%; background: var(--orange); }
+      .collector-state .dot { background: var(--green); box-shadow: 0 0 0 3px var(--accent-soft); }
+      .unit-toggle { display: inline-flex; min-height: 40px; padding: 3px; border: 1px solid var(--line); border-radius: 8px; background: var(--surface-soft); }
+      .unit-button { min-width: 46px; border: 0; border-radius: 5px; background: transparent; color: var(--muted); cursor: pointer; font-size: 11px; font-weight: 650; }
+      .unit-button.active { background: var(--surface-solid); color: var(--ink); box-shadow: 0 1px 3px rgba(20, 40, 28, .1); }
+      .notice { display: flex; gap: 10px; align-items: center; margin-bottom: 18px; padding: 12px; border: 1px solid var(--line); border-radius: 8px; background: var(--surface); color: var(--muted); font-size: 12px; }
+      .notice strong { color: var(--ink); }
+      .summary { display: grid; grid-template-columns: 1.5fr 1fr 1fr; margin-bottom: 24px; border: 1px solid var(--line); border-radius: 12px; overflow: hidden; background: var(--surface); }
+      .metric { min-height: 138px; padding: 22px; }
+      .metric + .metric { border-left: 1px solid var(--line); }
+      .metric.hero { background: var(--accent-soft); }
+      .metric-label { color: var(--muted); font-size: 9px; font-weight: 500; letter-spacing: .06em; text-transform: uppercase; }
+      .metric-value { margin-top: 14px; font-size: clamp(30px, 5vw, 42px); line-height: 1; font-weight: 550; letter-spacing: -.055em; }
+      .metric-value small { font: 10px ui-monospace, monospace; color: var(--muted); letter-spacing: 0; margin-left: 6px; }
+      .metric-detail { margin-top: 10px; color: var(--muted); font-size: 11px; line-height: 1.4; }
+      .panel { border: 1px solid var(--line); background: var(--surface); border-radius: 12px; padding: 22px; margin-bottom: 20px; }
+      .panel-head { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 12px; margin-bottom: 20px; }
+      .panel-controls { display: flex; align-items: center; justify-content: flex-end; gap: 10px; }
+      .section-index { color: var(--accent); font-size: 10px; margin-right: 8px; }
+      .panel-title { margin: 0; font-size: 15px; font-weight: 600; letter-spacing: -.02em; }
+      .panel-copy { margin: 7px 0 0; color: var(--muted); font-size: 11px; line-height: 1.5; }
+      .panel-tag { flex: none; color: var(--muted); font: 9px ui-monospace, monospace; letter-spacing: .06em; text-transform: uppercase; }
+      .chart-wrap { width: 100%; min-height: 240px; overflow: hidden; }
+      .chart { display: block; width: 100%; height: 240px; }
+      .gridline { stroke: var(--line); stroke-width: 1; stroke-dasharray: 3 4; }
+      .axis-label { fill: var(--muted); font: 10px ui-monospace, monospace; }
+      .legend { display: flex; flex-wrap: wrap; gap: 8px 16px; margin-top: 16px; padding-top: 16px; border-top: 1px solid var(--line); }
+      .legend-item { display: inline-flex; align-items: center; gap: 6px; color: var(--muted); font-size: 10px; }
+      .legend-swatch { width: 6px; height: 6px; border-radius: 50%; }
+      .models { display: grid; gap: 10px; }
+      .catalogue-label { margin: 18px 0 12px; color: var(--muted); font: 10px ui-monospace, monospace; }
+      .model-row { display: grid; grid-template-columns: minmax(170px, 1.2fr) minmax(220px, 1.5fr) minmax(120px, 1fr); align-items: center; gap: 20px; padding: 18px; border: 1px solid var(--line); border-radius: 9px; background: var(--surface-solid); }
+      .model-row.unmeasured { background: transparent; }
+      .model-name { min-width: 0; }
+      .model-name strong { display: block; font-size: 14px; font-weight: 600; letter-spacing: -.02em; overflow-wrap: anywhere; }
+      .model-meta { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin-top: 8px; color: var(--muted); font-size: 10px; }
+      .series-dot { display: inline-block; width: 7px; height: 7px; border-radius: 50%; margin-right: 7px; vertical-align: 1px; }
+      .stat-label { color: var(--muted); font-size: 9px; font-weight: 400; letter-spacing: .03em; text-transform: uppercase; }
+      .model-stats { display: grid; grid-template-columns: 1fr 1fr; gap: 10px 18px; }
+      .stat-value { margin-top: 5px; font-size: 18px; font-weight: 500; letter-spacing: -.035em; }
+      .average .stat-value { color: var(--ink); font-size: 24px; }
+      .confidence { grid-column: 1 / -1; color: var(--muted); font: 10px ui-monospace, monospace; line-height: 1.5; }
+      .range-cell { border-left: 1px solid var(--line); padding-left: 18px; }
+      .range { position: relative; height: 22px; margin-top: 7px; }
+      .range-line { position: absolute; left: 0; right: 0; top: 10px; height: 2px; background: var(--line); }
+      .range-fill { position: absolute; top: 9px; height: 4px; border-radius: 2px; }
+      .confidence-fill { position: absolute; top: 6px; height: 10px; border-radius: 5px; opacity: .28; }
+      .range-point { position: absolute; top: 6px; width: 10px; height: 10px; border: 2px solid var(--surface-solid); border-radius: 50%; transform: translateX(-50%); }
+      .range-labels { display: flex; justify-content: space-between; color: var(--muted); font: 10px ui-monospace, monospace; gap: 10px; }
+      .waiting-label { grid-column: 2 / -1; color: var(--muted); font-size: 11px; }
+      .sample-count { color: var(--muted); font: 9px ui-monospace, monospace; }
+      .empty { min-height: 200px; display: grid; place-items: center; padding: 24px; text-align: center; color: var(--muted); font-size: 12px; }
+      .empty-mark { width: 48px; height: 48px; display: grid; place-items: center; margin: 0 auto 12px; border-radius: 50%; background: var(--accent-soft); color: var(--accent); font-size: 24px; }
+      .footnote { display: flex; justify-content: space-between; gap: 16px; color: var(--muted); font-size: 10px; line-height: 1.6; padding: 0 4px 12px; }
+      .toast { position: fixed; left: 50%; bottom: 16px; width: min(calc(100% - 32px), 480px); transform: translate(-50%, 12px); padding: 12px; border: 1px solid var(--line); border-radius: 8px; background: var(--ink); color: var(--bg); opacity: 0; pointer-events: none; transition: .2s ease; }
+      .toast.show { opacity: 1; transform: translate(-50%, 0); }
+      @media (max-width: 860px) {
+        .shell { padding: 20px; }
+        .topbar { display: block; }
+        .actions { justify-content: flex-start; margin-top: 18px; }
+        .collector-state { margin-right: auto; }
+        .model-row { grid-template-columns: 1fr 1fr; gap: 16px; }
+        .model-name { grid-column: 1 / -1; display: flex; justify-content: space-between; align-items: center; gap: 12px; }
+        .model-meta { margin-top: 0; justify-content: flex-end; }
+      }
+      @media (max-width: 560px) {
+        .shell { padding: 16px; }
+        .panel { padding: 16px; }
+        .summary { grid-template-columns: 1fr 1fr; }
+        .metric { min-height: 108px; padding: 16px; }
+        .metric.hero { grid-column: 1 / -1; border-bottom: 1px solid var(--line); }
+        .metric.hero + .metric { border-left: 0; }
+        .model-row { padding: 14px; grid-template-columns: minmax(0, 1fr); gap: 14px; }
+        .model-name { display: block; }
+        .model-meta { margin-top: 7px; justify-content: flex-start; }
+        .range-cell { border-left: 0; border-top: 1px solid var(--line); padding: 12px 0 0; }
+        .waiting-label { grid-column: auto; }
+        .metric-value { font-size: 34px; }
+        .panel-tag { display: none; }
+        .footnote { display: block; }
+        .footnote span { display: block; margin-bottom: 8px; }
+      }
+    </style>
+  </head>
+  <body>
+    <div id="app" class="shell" aria-live="polite"></div>
+    <div id="toast" class="toast" role="status"></div>
+    <script type="module">
+      const palette = ['#58ad91', '#d78d60', '#84a6d0', '#b19ed3', '#c6ae60', '#cd829c'];
+      const app = document.querySelector('#app');
+      const toast = document.querySelector('#toast');
+      let dashboard = null;
+      let unit = 'second';
+      let tier = 'Standard';
+      let refreshInFlight = false;
+      let pollTimer = null;
+      let rpcId = 0;
+      let toastTimer;
+      const pending = new Map();
+
+      const escapeHtml = (value) => String(value)
+        .replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;')
+        .replaceAll('"', '&quot;').replaceAll("'", '&#039;');
+      const number = (value) => value == null ? '—' : Math.round(value).toLocaleString();
+      const converted = (tpm) => unit === 'second' ? tpm / 60 : tpm;
+      const metricNumber = (tpm) => tpm == null ? '—' : converted(tpm).toLocaleString(undefined, { maximumFractionDigits: unit === 'second' ? 1 : 0 });
+      const axisNumber = (value) => value.toLocaleString(undefined, { maximumFractionDigits: unit === 'second' ? 1 : 0 });
+      const unitLabel = () => unit === 'second' ? 'TPS' : 'TPM';
+      const seriesColor = (model) => palette[[...model.seriesId].reduce((sum, character) => sum + character.charCodeAt(0), 0) % palette.length];
+      const shortDate = (value) => value ? new Intl.DateTimeFormat(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }).format(new Date(value)) : 'No samples yet';
+
+      function showToast(message) {
+        clearTimeout(toastTimer);
+        toast.textContent = message;
+        toast.classList.add('show');
+        toastTimer = setTimeout(() => toast.classList.remove('show'), 3800);
+      }
+
+      function render() {
+        if (!dashboard) {
+          app.innerHTML = `<div class="empty"><div><div class="empty-mark">⌁</div><strong>Opening the dashboard…</strong><p>Reading your live Codex model catalogue.</p></div></div>`;
+          return;
+        }
+        const availableCount = new Set(dashboard.models.filter((model) => model.available).map((model) => model.model)).size;
+        const measured = dashboard.models
+          .filter((model) => model.stats)
+          .toSorted((left, right) => right.stats.average - left.stats.average);
+        const best = dashboard.models.find((model) => model.seriesId === dashboard.bestSeries);
+        const latest = measured.map((model) => model.latest).filter(Boolean).toSorted((a, b) => b.measuredAt.localeCompare(a.measuredAt))[0];
+        const compared = dashboard.models.filter((model) => model.tierName === tier);
+        const comparedMeasured = compared.filter((model) => model.stats).toSorted((left, right) => right.stats.average - left.stats.average);
+        const comparedUnmeasured = compared.filter((model) => !model.stats);
+        app.innerHTML = `
+          <header class="topbar">
+            <div>
+              <p class="eyebrow"><svg class="brand-mark" viewBox="0 0 24 24" fill="none" aria-hidden="true"><circle cx="12" cy="12" r="10" stroke="currentColor"/><path d="M5 14h4l3-7 3 11 2-4h2" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/></svg> Local model telemetry</p>
+              <h1>Am I Being Throttled?</h1>
+              <p class="subtitle">Observed model throughput from your Codex turns.</p>
+            </div>
+            <div class="actions">
+              <div class="unit-toggle" role="group" aria-label="Throughput unit"><button class="unit-button ${unit === 'second' ? 'active' : ''}" data-action="unit" data-unit="second" aria-pressed="${unit === 'second'}">TPS</button><button class="unit-button ${unit === 'minute' ? 'active' : ''}" data-action="unit" data-unit="minute" aria-pressed="${unit === 'minute'}">TPM</button></div>
+              <span class="collector-state"><span class="dot"></span>${escapeHtml(dashboard.collector.state === 'active' ? 'LIVE / 5s' : dashboard.collector.state === 'error' ? 'NEEDS ATTENTION' : 'AWAITING TURNS')}</span>
+              <button class="button" data-action="refresh">Refresh</button>
+            </div>
+          </header>
+          ${dashboard.catalogueError ? `<div class="notice"><span class="dot"></span><span><strong>Live catalogue unavailable.</strong> Showing saved history. ${escapeHtml(dashboard.catalogueError)}</span></div>` : ''}
+          <section class="summary" aria-label="Summary">
+            <article class="metric hero"><div class="metric-label">Highest observed mean</div><div class="metric-value">${metricNumber(best?.stats.average)}<small>${unitLabel()}</small></div><div class="metric-detail">${best ? `${escapeHtml(best.displayName)} · ${escapeHtml(best.tierName)}` : 'Your next completed turn starts the record'}</div></article>
+            <article class="metric"><div class="metric-label">Available models</div><div class="metric-value">${number(availableCount)}</div><div class="metric-detail">From your Codex catalogue</div></article>
+            <article class="metric"><div class="metric-label">Observed turns</div><div class="metric-value">${number(dashboard.runCount)}</div><div class="metric-detail">${latest ? `Last sample ${shortDate(latest.measuredAt)}` : escapeHtml(dashboard.collector.message)}</div></article>
+          </section>
+          <section class="panel">
+            <div class="panel-head"><div><h2 class="panel-title"><span class="section-index">01</span> Throughput over time</h2><p class="panel-copy">Dots are completed turns. Lines show a five-observation rolling average.</p></div><span class="panel-tag">${unitLabel()} / observed</span></div>
+            ${chart(comparedMeasured)}
+          </section>
+          <section class="panel">
+            <div class="panel-head"><div><h2 class="panel-title"><span class="section-index">02</span> Model comparison</h2><p class="panel-copy">Reasoning efforts are pooled within each model. The interval estimates the mean.</p></div><div class="panel-controls"><div class="unit-toggle" role="group" aria-label="Speed tier"><button class="unit-button ${tier === 'Standard' ? 'active' : ''}" data-action="tier" data-tier="Standard" aria-pressed="${tier === 'Standard'}">Standard</button><button class="unit-button ${tier === 'Fast' ? 'active' : ''}" data-action="tier" data-tier="Fast" aria-pressed="${tier === 'Fast'}">Fast</button><button class="unit-button ${tier === 'Ultra Fast' ? 'active' : ''}" data-action="tier" data-tier="Ultra Fast" aria-pressed="${tier === 'Ultra Fast'}">Ultra Fast</button></div><span class="panel-tag">95% confidence</span></div></div>
+            <div class="models">${comparedMeasured.map((model) => modelRow(model)).join('')}</div>
+            ${comparedUnmeasured.length ? `<p class="catalogue-label">Awaiting first observations</p><div class="models">${comparedUnmeasured.map((model) => modelRow(model)).join('')}</div>` : ''}
+          </section>
+          <footer class="footnote"><span>${escapeHtml(unit === 'second' ? dashboard.measurement.replace('minute', 'second') : dashboard.measurement)}</span><span>No extra model calls. Tool and command wait time is excluded.</span><span aria-label="Version">v__APP_VERSION__</span></footer>`;
+      }
+
+      function modelRow(model) {
+        const stats = model.stats;
+        const low = 8, high = 92;
+        const domainMin = stats ? Math.min(stats.min, stats.ci95Low ?? stats.min) : 0;
+        const domainMax = stats ? Math.max(stats.max, stats.ci95High ?? stats.max) : 0;
+        const position = (value) => domainMax > domainMin ? low + (high - low) * (value - domainMin) / (domainMax - domainMin) : 50;
+        const observedLow = position(stats?.min);
+        const observedHigh = position(stats?.max);
+        const average = position(stats?.average);
+        const confidenceLow = stats?.ci95Low == null ? null : position(stats.ci95Low);
+        const confidenceHigh = stats?.ci95High == null ? null : position(stats.ci95High);
+        const color = seriesColor(model);
+        const identity = `<div class="model-name"><strong><span class="series-dot" style="background:${color}"></span>${escapeHtml(model.displayName)}</strong><div class="model-meta">${model.isDefault ? '<span>Default model</span>' : ''}${model.available ? '' : '<span>History only</span>'}<span class="sample-count">${number(stats?.count ?? 0)} ${stats?.count === 1 ? 'sample' : 'samples'}</span></div></div>`;
+        if (!stats) return `<article class="model-row unmeasured">${identity}<div class="waiting-label">Awaiting first observation</div></article>`;
+        return `<article class="model-row">
+          ${identity}
+          <div class="model-stats">
+            <div class="average"><div class="stat-label">Average · ${unitLabel()}</div><div class="stat-value">${metricNumber(stats?.average)}</div></div>
+            <div class="latest"><div class="stat-label">Latest · ${unitLabel()}</div><div class="stat-value">${metricNumber(model.latest?.tpm)}</div></div>
+            <div class="confidence">95% CI ${stats.ci95Low == null ? '· needs 2 samples' : `${metricNumber(stats.ci95Low)}–${metricNumber(stats.ci95High)}`} · Median ${metricNumber(stats.median)}</div>
+          </div>
+          <div class="range-cell"><div class="stat-label">Observed range · ${unitLabel()}</div><div class="range" role="img" aria-label="Observed range ${metricNumber(stats.min)} to ${metricNumber(stats.max)}; ${stats.ci95Low == null ? '95% confidence interval needs 2 samples' : `95% confidence interval ${metricNumber(stats.ci95Low)} to ${metricNumber(stats.ci95High)}`}"><span class="range-line"></span>${confidenceLow == null ? '' : `<span class="confidence-fill" style="left:${confidenceLow}%;width:${confidenceHigh - confidenceLow}%;background:${color}"></span>`}<span class="range-fill" style="left:${observedLow}%;width:${observedHigh - observedLow}%;background:${color}"></span><span class="range-point" style="left:${average}%;background:${color}"></span></div><div class="range-labels"><span>Min ${metricNumber(stats?.min)}</span><span>Max ${metricNumber(stats?.max)}</span></div></div>
+        </article>`;
+      }
+
+      function rollingAverage(samples) {
+        return samples.map((sample, index) => {
+          const window = samples.slice(Math.max(0, index - 4), index + 1);
+          return { ...sample, tpm: window.reduce((sum, point) => sum + point.tpm, 0) / window.length };
+        });
+      }
+
+      function chart(models) {
+        if (!models.length) return `<div class="empty"><div><div class="empty-mark">↗</div><strong>Waiting for completed turns</strong><p>Use Codex normally. New measurements will appear here in the background.</p></div></div>`;
+        const points = models.flatMap((model) => model.samples.map((sample) => ({ ...sample, model: model.model })));
+        const start = Math.min(...points.map((point) => Date.parse(point.measuredAt)));
+        const end = Math.max(...points.map((point) => Date.parse(point.measuredAt)));
+        const max = Math.max(...points.map((point) => converted(point.tpm)), 1) * 1.12;
+        const width = Math.max(280, Math.min(app.clientWidth - 44, 900)), height = 240, left = 56, right = 10, top = 18, bottom = 34;
+        const x = (date) => end === start ? (width + left - right) / 2 : left + ((Date.parse(date) - start) / (end - start)) * (width - left - right);
+        const y = (tpm) => top + (1 - converted(tpm) / max) * (height - top - bottom);
+        const grids = [0, .25, .5, .75, 1].map((ratio) => {
+          const py = top + ratio * (height - top - bottom);
+          return `<line class="gridline" x1="${left}" y1="${py}" x2="${width - right}" y2="${py}"/><text class="axis-label" x="${left - 8}" y="${py + 3}" text-anchor="end">${axisNumber(max * (1 - ratio))}</text>`;
+        }).join('');
+        const lines = models.map((model) => {
+          const color = seriesColor(model);
+          const path = rollingAverage(model.samples).map((sample, pointIndex) => `${pointIndex ? 'L' : 'M'}${x(sample.measuredAt).toFixed(1)},${y(sample.tpm).toFixed(1)}`).join(' ');
+          const circles = model.samples.map((sample) => `<circle cx="${x(sample.measuredAt)}" cy="${y(sample.tpm)}" r="3.4" fill="${color}" stroke="var(--surface)" stroke-width="2"><title>${escapeHtml(model.displayName)} · ${escapeHtml(model.tierName)}: ${metricNumber(sample.tpm)} ${unitLabel()} · ${shortDate(sample.measuredAt)}</title></circle>`).join('');
+          return `<path d="${path}" fill="none" stroke="${color}" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>${circles}`;
+        }).join('');
+        const legend = models.map((model) => `<span class="legend-item"><span class="legend-swatch" style="background:${seriesColor(model)}"></span>${escapeHtml(model.displayName)} · ${escapeHtml(model.tierName)}</span>`).join('');
+        return `<div class="chart-wrap"><svg class="chart" viewBox="0 0 ${width} ${height}" role="img" aria-label="Model throughput observations and five-observation rolling averages in ${unitLabel()}">${grids}${lines}<text class="axis-label" x="${left}" y="${height - 10}">${shortDate(new Date(start).toISOString())}</text><text class="axis-label" x="${width - right}" y="${height - 10}" text-anchor="end">${shortDate(new Date(end).toISOString())}</text></svg></div><div class="legend">${legend}</div>`;
+      }
+
+      function applyResponse(response) {
+        const value = response?.structuredContent?.dashboard ? response : response?.result ?? response;
+        if (value?.structuredContent?.dashboard) {
+          dashboard = value.structuredContent.dashboard;
+          render();
+          if (value.structuredContent.message && value.structuredContent.message !== 'Am I Being Throttled? refreshed.') showToast(value.structuredContent.message);
+        }
+        return value;
+      }
+
+      function rpcNotify(method, params) { window.parent.postMessage({ jsonrpc: '2.0', method, params }, '*'); }
+      function rpcRequest(method, params) {
+        return new Promise((resolve, reject) => {
+          const id = ++rpcId;
+          pending.set(id, { resolve, reject });
+          window.parent.postMessage({ jsonrpc: '2.0', id, method, params }, '*');
+        });
+      }
+      async function callTool(name, args = {}) { return applyResponse(await rpcRequest('tools/call', { name, arguments: args })); }
+
+      async function refreshDashboard(silent = true) {
+        if (refreshInFlight || document.visibilityState !== 'visible') return;
+        refreshInFlight = true;
+        try {
+          await callTool('tpm_refresh');
+        } catch (error) {
+          if (!silent) showToast(error instanceof Error ? error.message : 'Refresh failed');
+        } finally {
+          refreshInFlight = false;
+        }
+      }
+
+      function startPolling() {
+        if (pollTimer) return;
+        pollTimer = setInterval(() => void refreshDashboard(true), 5_000);
+      }
+
+      window.addEventListener('message', (event) => {
+        if (event.source !== window.parent || event.data?.jsonrpc !== '2.0') return;
+        const message = event.data;
+        if (message.id !== undefined) {
+          const request = pending.get(message.id);
+          if (!request) return;
+          pending.delete(message.id);
+          if (message.error) request.reject(new Error(message.error.message));
+          else request.resolve(message.result);
+        } else if (message.method === 'ui/notifications/tool-result') applyResponse(message.params);
+      }, { passive: true });
+
+      app.addEventListener('click', async (event) => {
+        const button = event.target.closest('button[data-action]');
+        if (!button) return;
+        const action = button.dataset.action;
+        try {
+          if (action === 'unit') {
+            unit = button.dataset.unit === 'second' ? 'second' : 'minute';
+            render();
+          } else if (action === 'tier') {
+            tier = ['Standard', 'Fast', 'Ultra Fast'].includes(button.dataset.tier) ? button.dataset.tier : 'Standard';
+            render();
+          } else if (action === 'refresh') {
+            button.disabled = true;
+            await refreshDashboard(false);
+          }
+        } catch (error) {
+          showToast(error instanceof Error ? error.message : 'Action failed');
+        } finally {
+          render();
+        }
+      });
+
+      async function initialize() {
+        render();
+        try {
+          await rpcRequest('ui/initialize', { appInfo: { name: 'tpm-observatory', version: '__APP_VERSION__' }, appCapabilities: {}, protocolVersion: '2026-01-26' });
+          rpcNotify('ui/notifications/initialized', {});
+          startPolling();
+          setTimeout(() => { if (!dashboard) void refreshDashboard(false); }, 400);
+        } catch (error) {
+          showToast(`Could not connect to Codex: ${error.message}`);
+        }
+      }
+      document.addEventListener('visibilitychange', () => {
+        if (document.visibilityState === 'visible') void refreshDashboard(true);
+      });
+      window.addEventListener('pagehide', () => clearInterval(pollTimer), { once: true });
+      window.addEventListener('resize', () => { if (dashboard) render(); });
+      initialize();
+    </script>
+  </body>
+</html>

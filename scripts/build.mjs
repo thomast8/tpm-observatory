@@ -1,4 +1,4 @@
-import { copyFile, mkdir, readFile, readdir, writeFile } from 'node:fs/promises';
+import { copyFile, cp, mkdir, readFile, readdir, writeFile } from 'node:fs/promises';
 import { build } from 'esbuild';
 import packageMetadata from '../package.json' with { type: 'json' };
 
@@ -43,6 +43,11 @@ await copyFile(
 await copyFile(new URL('../LICENSE', import.meta.url), new URL('../plugin/LICENSE', import.meta.url));
 await writeThirdPartyNotices([serverBuild.metafile, collectorBuild.metafile]);
 
+// shortcut: current Codex suppresses hooks in portable bundles, remove this copy when its loader supports them.
+for (const path of ['.codex-plugin', '.mcp.json', 'assets', 'dist', 'hooks', 'LICENSE', 'THIRD_PARTY_NOTICES.txt']) {
+  await cp(new URL(`../plugin/${path}`, import.meta.url), new URL(`../codex-plugin/${path}`, import.meta.url), { recursive: true });
+}
+
 async function writeThirdPartyNotices(metafiles) {
   const packages = new Set();
   for (const input of metafiles.flatMap((metafile) => Object.keys(metafile.inputs))) {
@@ -58,6 +63,6 @@ async function writeThirdPartyNotices(metafiles) {
     notices.push(`${name} ${metadata.version} (${metadata.license ?? 'see license text'})`, '-'.repeat(72));
     notices.push((await readFile(new URL(licenseFile, root), 'utf8')).trim(), '');
   }
-  await writeFile(new URL('../plugin/THIRD_PARTY_NOTICES.txt', import.meta.url), `${notices.join('\n')}\n`);
+  await writeFile(new URL('../plugin/THIRD_PARTY_NOTICES.txt', import.meta.url), `${notices.join('\n').trimEnd()}\n`);
 }
 

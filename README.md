@@ -41,4 +41,5 @@ just qa-mcp
 ```
 
 Source lives in `src/`; `npm run build` writes the installable bundle to `plugin/`.
+The Codex marketplace installs the generated `codex-plugin/` compatibility bundle because current Codex releases suppress lifecycle hooks in packages with a root `plugin.json`. The portable package remains in `plugin/`.
 

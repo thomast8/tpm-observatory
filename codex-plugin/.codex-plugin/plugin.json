@@ -1,0 +1,34 @@
+{
+  "name": "tpm-observatory",
+  "version": "1.0.3",
+  "description": "Passively track observed Codex model tokens per minute over time.",
+  "author": {
+    "name": "Thomas Tiotto",
+    "url": "https://github.com/thomast8"
+  },
+  "homepage": "https://github.com/thomast8/tpm-observatory",
+  "repository": "https://github.com/thomast8/tpm-observatory",
+  "license": "MIT",
+  "keywords": [
+    "codex",
+    "telemetry",
+    "throughput",
+    "tpm",
+    "tps"
+  ],
+  "hooks": "./hooks/hooks.json",
+  "mcpServers": "./.mcp.json",
+  "interface": {
+    "logo": "./assets/tpm-observatory.svg",
+    "composerIcon": "./assets/tpm-observatory.svg",
+    "displayName": "Am I Being Throttled?",
+    "shortDescription": "Track Codex model throughput automatically.",
+    "longDescription": "Passively record completed Codex turns and compare averages, 95% confidence intervals, minima and maxima by model and speed tier in a local dashboard.",
+    "developerName": "Thomas Tiotto",
+    "category": "Developer tools",
+    "websiteURL": "https://github.com/thomast8/tpm-observatory",
+    "defaultPrompt": [
+      "Open the Am I Being Throttled? dashboard."
+    ]
+  }
+}

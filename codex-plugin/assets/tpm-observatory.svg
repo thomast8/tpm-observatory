@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" role="img" aria-label="Am I Being Throttled?">
+  <defs>
+    <linearGradient id="g" x1="16" y1="112" x2="112" y2="16" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#ff7849"/>
+      <stop offset=".52" stop-color="#7c5cff"/>
+      <stop offset="1" stop-color="#26c6a0"/>
+    </linearGradient>
+  </defs>
+  <rect x="8" y="8" width="112" height="112" rx="30" fill="#171821"/>
+  <path d="M25 89 45 66l17 12 23-39 18 13" fill="none" stroke="url(#g)" stroke-width="9" stroke-linecap="round" stroke-linejoin="round"/>
+  <circle cx="45" cy="66" r="6" fill="#ffb15c"/>
+  <circle cx="85" cy="39" r="6" fill="#8d78ff"/>
+</svg>
