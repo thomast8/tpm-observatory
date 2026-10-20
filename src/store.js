@@ -121,6 +121,14 @@ export class SampleStore {
       .get(sessionId, turnId);
   }
 
+  getLastTurn(sessionId) {
+    return this.database
+      .prepare(`SELECT turn_id AS turnId, model
+        FROM turn_offsets WHERE session_id = ?
+        ORDER BY created_at DESC, rowid DESC LIMIT 1`)
+      .get(sessionId);
+  }
+
   setCollectorStatus(state, message, lastSampleAt = null) {
     const previous = this.getCollectorStatus();
     this.database
