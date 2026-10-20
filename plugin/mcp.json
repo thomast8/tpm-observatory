@@ -1,7 +1,7 @@
 {
   "$schema": "https://agent-plugins.org/schemas/1.0.0/mcp.schema.json",
   "mcpServers": {
-    "tpm-observatory-1-0-4": {
+    "tpm-observatory-1-0-5": {
       "type": "stdio",
       "command": "node",
       "args": [

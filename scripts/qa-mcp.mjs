@@ -1,14 +1,21 @@
-import { resolve } from 'node:path';
+import { cp, mkdtemp, readFile } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { join, resolve } from 'node:path';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js';
 
 const root = resolve(new URL('..', import.meta.url).pathname);
-const dataDir = process.env.TPM_OBSERVATORY_QA_DATA || resolve(root, '.data', 'mcp-qa');
+const metadata = JSON.parse(await readFile(join(root, 'package.json'), 'utf8'));
+const profile = await mkdtemp(join(tmpdir(), 'tpm-mcp-qa-'));
+const installed = join(profile, 'cache', 'tpm-observatory', 'tpm-observatory', metadata.version);
+await cp(join(root, 'codex-plugin'), installed, { recursive: true });
+const mcp = JSON.parse(await readFile(join(installed, '.mcp.json'), 'utf8'));
+const [configuration] = Object.values(mcp.mcpServers);
 const transport = new StdioClientTransport({
-  command: 'node',
-  args: ['plugin/dist/server.js'],
-  cwd: root,
-  env: { ...process.env, PLUGIN_DATA: dataDir },
+  command: configuration.command,
+  args: configuration.args,
+  cwd: resolve(installed, configuration.cwd),
+  env: { ...process.env },
   stderr: 'pipe',
 });
 const client = new Client({ name: 'tpm-observatory-qa', version: '1.0.0' });
