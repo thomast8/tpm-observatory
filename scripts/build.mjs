@@ -63,6 +63,6 @@ async function writeThirdPartyNotices(metafiles) {
     notices.push(`${name} ${metadata.version} (${metadata.license ?? 'see license text'})`, '-'.repeat(72));
     notices.push((await readFile(new URL(licenseFile, root), 'utf8')).trim(), '');
   }
-  await writeFile(new URL('../plugin/THIRD_PARTY_NOTICES.txt', import.meta.url), `${notices.join('\n')}\n`);
+  await writeFile(new URL('../plugin/THIRD_PARTY_NOTICES.txt', import.meta.url), `${notices.join('\n').trimEnd()}\n`);
 }
 
