@@ -1,6 +1,6 @@
 {
   "mcpServers": {
-    "tpm-observatory-1-0-5": {
+    "tpm-observatory-1-0-6": {
       "command": "node",
       "args": [
         "--input-type=module",
