@@ -36,11 +36,12 @@ test('plots observations as dots and a five-observation rolling average as the l
   assert.match(panel, /Dots are completed turns\. Lines show a five-observation rolling average\./);
   assert.match(panel, /rollingAverage\(model\.samples\)/);
   assert.match(panel, /const circles = model\.samples\.map/);
+  assert.match(panel, /return `C\$\{middle\}/);
 });
 
 test('renders average, interval, median and range in both units with consistent series colour', () => {
   let click;
-  const app = { innerHTML: '', clientWidth: 428, addEventListener(event, handler) { if (event === 'click') click = handler; } };
+  const app = { innerHTML: '', clientWidth: 428, querySelectorAll() { return []; }, addEventListener(event, handler) { if (event === 'click') click = handler; } };
   const toast = { textContent: '', classList: { add() {}, remove() {} } };
   const context = {
     document: {
@@ -83,6 +84,13 @@ test('renders average, interval, median and range in both units with consistent 
   assert.match(graph(observed.secondView), /&lt;Test&gt; · Fast: 20 TPS/);
   assert.match(graph(observed.minuteView), /&lt;Test&gt; · Fast: 1,200 TPM/);
   assert.match(graph(observed.minuteView), /averages in TPM/);
+  assert.match(graph(observed.secondView), /class="sample-hit"[^>]*tabindex="0"/);
+  click({ target: { closest: () => ({ dataset: { action: 'series', series: model.seriesId } }) } });
+  assert.match(graph(app.innerHTML), /Select a model below/);
+  assert.match(graph(app.innerHTML), /aria-pressed="false"/);
+  click({ target: { closest: () => ({ dataset: { action: 'series', series: model.seriesId } }) } });
+  assert.match(graph(app.innerHTML), /class="sample-hit"/);
+  assert.match(graph(app.innerHTML), /aria-pressed="true"/);
   assert.doesNotMatch(observed.secondView, />Slower</);
   assert.doesNotMatch(panel, /\.model-row .*display: none/);
   assert.ok(observed.secondView.indexOf('data-unit="second"') < observed.secondView.indexOf('data-unit="minute"'));
