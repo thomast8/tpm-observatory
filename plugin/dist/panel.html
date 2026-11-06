@@ -69,8 +69,13 @@
       .gridline { stroke: var(--line); stroke-width: 1; stroke-dasharray: 3 4; }
       .axis-label { fill: var(--muted); font: 10px ui-monospace, monospace; }
       .legend { display: flex; flex-wrap: wrap; gap: 8px 16px; margin-top: 16px; padding-top: 16px; border-top: 1px solid var(--line); }
-      .legend-item { display: inline-flex; align-items: center; gap: 6px; color: var(--muted); font-size: 10px; }
+      .legend-item { display: inline-flex; align-items: center; gap: 6px; padding: 4px; border: 0; border-radius: 4px; background: transparent; color: var(--muted); font-size: 10px; cursor: pointer; }
+      .legend-item[aria-pressed="false"] { opacity: .4; text-decoration: line-through; }
+      .legend-item:hover { background: var(--surface-soft); }
       .legend-swatch { width: 6px; height: 6px; border-radius: 50%; }
+      .sample-point { opacity: .35; pointer-events: none; }
+      .sample-hit { fill: transparent; cursor: crosshair; }
+      .sample-hit:hover + .sample-point, .sample-hit:focus + .sample-point { opacity: 1; }
       .models { display: grid; gap: 10px; }
       .catalogue-label { margin: 18px 0 12px; color: var(--muted); font: 10px ui-monospace, monospace; }
       .model-row { display: grid; grid-template-columns: minmax(170px, 1.2fr) minmax(220px, 1.5fr) minmax(120px, 1fr); align-items: center; gap: 20px; padding: 18px; border: 1px solid var(--line); border-radius: 9px; background: var(--surface-solid); }
@@ -136,6 +141,7 @@
       let dashboard = null;
       let unit = 'second';
       let tier = 'Standard';
+      const hiddenSeries = new Set();
       let refreshInFlight = false;
       let pollTimer = null;
       let rpcId = 0;
@@ -194,7 +200,7 @@
             <article class="metric"><div class="metric-label">Observed turns</div><div class="metric-value">${number(dashboard.runCount)}</div><div class="metric-detail">${latest ? `Last sample ${shortDate(latest.measuredAt)}` : escapeHtml(dashboard.collector.message)}</div></article>
           </section>
           <section class="panel">
-            <div class="panel-head"><div><h2 class="panel-title"><span class="section-index">01</span> Throughput over time</h2><p class="panel-copy">Dots are completed turns. Lines show a five-observation rolling average.</p></div><span class="panel-tag">${unitLabel()} / observed</span></div>
+            <div class="panel-head"><div><h2 class="panel-title"><span class="section-index">01</span> Throughput over time</h2><p class="panel-copy">Dots are completed turns. Lines show a five-observation rolling average. Hover over a dot for details; click models below to filter.</p></div><span class="panel-tag">${unitLabel()} / observed</span></div>
             ${chart(comparedMeasured)}
           </section>
           <section class="panel">
@@ -239,7 +245,10 @@
 
       function chart(models) {
         if (!models.length) return `<div class="empty"><div><div class="empty-mark">↗</div><strong>Waiting for completed turns</strong><p>Use Codex normally. New measurements will appear here in the background.</p></div></div>`;
-        const points = models.flatMap((model) => model.samples.map((sample) => ({ ...sample, model: model.model })));
+        const visible = models.filter((model) => !hiddenSeries.has(model.seriesId));
+        const legend = models.map((model) => `<button type="button" class="legend-item" data-action="series" data-series="${escapeHtml(model.seriesId)}" aria-pressed="${!hiddenSeries.has(model.seriesId)}"><span class="legend-swatch" style="background:${seriesColor(model)}"></span>${escapeHtml(model.displayName)} · ${escapeHtml(model.tierName)}</button>`).join('');
+        if (!visible.length) return `<div class="empty">Select a model below to show its observations.</div><div class="legend" aria-label="Filter chart models">${legend}</div>`;
+        const points = visible.flatMap((model) => model.samples.map((sample) => ({ ...sample, model: model.model })));
         const start = Math.min(...points.map((point) => Date.parse(point.measuredAt)));
         const end = Math.max(...points.map((point) => Date.parse(point.measuredAt)));
         const max = Math.max(...points.map((point) => converted(point.tpm)), 1) * 1.12;
@@ -250,21 +259,26 @@
           const py = top + ratio * (height - top - bottom);
           return `<line class="gridline" x1="${left}" y1="${py}" x2="${width - right}" y2="${py}"/><text class="axis-label" x="${left - 8}" y="${py + 3}" text-anchor="end">${axisNumber(max * (1 - ratio))}</text>`;
         }).join('');
-        const lines = models.map((model) => {
+        const lines = visible.map((model) => {
           const color = seriesColor(model);
-          const path = rollingAverage(model.samples).map((sample, pointIndex) => `${pointIndex ? 'L' : 'M'}${x(sample.measuredAt).toFixed(1)},${y(sample.tpm).toFixed(1)}`).join(' ');
-          const circles = model.samples.map((sample) => `<circle cx="${x(sample.measuredAt)}" cy="${y(sample.tpm)}" r="3.4" fill="${color}" stroke="var(--surface)" stroke-width="2"><title>${escapeHtml(model.displayName)} · ${escapeHtml(model.tierName)}: ${metricNumber(sample.tpm)} ${unitLabel()} · ${shortDate(sample.measuredAt)}</title></circle>`).join('');
+          const averaged = rollingAverage(model.samples).map((sample) => ({ x: x(sample.measuredAt), y: y(sample.tpm) }));
+          const path = averaged.map((point, index) => {
+            if (!index) return `M${point.x},${point.y}`;
+            const previous = averaged[index - 1], middle = (previous.x + point.x) / 2;
+            return `C${middle},${previous.y} ${middle},${point.y} ${point.x},${point.y}`;
+          }).join(' ');
+          const circles = model.samples.map((sample) => `<circle class="sample-hit" cx="${x(sample.measuredAt)}" cy="${y(sample.tpm)}" r="7" tabindex="0" aria-label="${escapeHtml(model.displayName)} · ${escapeHtml(model.tierName)}: ${metricNumber(sample.tpm)} ${unitLabel()} · ${shortDate(sample.measuredAt)}"><title>${escapeHtml(model.displayName)} · ${escapeHtml(model.tierName)}: ${metricNumber(sample.tpm)} ${unitLabel()} · ${shortDate(sample.measuredAt)}</title></circle><circle class="sample-point" cx="${x(sample.measuredAt)}" cy="${y(sample.tpm)}" r="2.5" fill="${color}"/>`).join('');
           return `<path d="${path}" fill="none" stroke="${color}" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>${circles}`;
         }).join('');
-        const legend = models.map((model) => `<span class="legend-item"><span class="legend-swatch" style="background:${seriesColor(model)}"></span>${escapeHtml(model.displayName)} · ${escapeHtml(model.tierName)}</span>`).join('');
-        return `<div class="chart-wrap"><svg class="chart" viewBox="0 0 ${width} ${height}" role="img" aria-label="Model throughput observations and five-observation rolling averages in ${unitLabel()}">${grids}${lines}<text class="axis-label" x="${left}" y="${height - 10}">${shortDate(new Date(start).toISOString())}</text><text class="axis-label" x="${width - right}" y="${height - 10}" text-anchor="end">${shortDate(new Date(end).toISOString())}</text></svg></div><div class="legend">${legend}</div>`;
+        return `<div class="chart-wrap"><svg class="chart" viewBox="0 0 ${width} ${height}" aria-label="Model throughput observations and five-observation rolling averages in ${unitLabel()}">${grids}${lines}<text class="axis-label" x="${left}" y="${height - 10}">${shortDate(new Date(start).toISOString())}</text><text class="axis-label" x="${width - right}" y="${height - 10}" text-anchor="end">${shortDate(new Date(end).toISOString())}</text></svg></div><div class="legend" aria-label="Filter chart models">${legend}</div>`;
       }
 
       function applyResponse(response) {
         const value = response?.structuredContent?.dashboard ? response : response?.result ?? response;
         if (value?.structuredContent?.dashboard) {
+          const changed = JSON.stringify(dashboard) !== JSON.stringify(value.structuredContent.dashboard);
           dashboard = value.structuredContent.dashboard;
-          render();
+          if (changed) render();
           if (value.structuredContent.message && value.structuredContent.message !== 'Am I Being Throttled? refreshed.') showToast(value.structuredContent.message);
         }
         return value;
@@ -320,6 +334,9 @@
           } else if (action === 'tier') {
             tier = ['Standard', 'Fast', 'Ultra Fast'].includes(button.dataset.tier) ? button.dataset.tier : 'Standard';
             render();
+          } else if (action === 'series') {
+            const id = button.dataset.series;
+            if (hiddenSeries.has(id)) hiddenSeries.delete(id); else hiddenSeries.add(id);
           } else if (action === 'refresh') {
             button.disabled = true;
             await refreshDashboard(false);
@@ -328,6 +345,7 @@
           showToast(error instanceof Error ? error.message : 'Action failed');
         } finally {
           render();
+          if (action === 'series') [...app.querySelectorAll('button[data-series]')].find((item) => item.dataset.series === button.dataset.series)?.focus();
         }
       });
 
