@@ -9,7 +9,7 @@ export function parseTurnTelemetry(text, hook) {
   let targetStarted = false;
   let usage = null;
   let completion = null;
-  let modelItemDurationMs = 0;
+  const modelIntervals = [];
   const excludedIntervals = [];
   for (const line of text.split('\n')) {
     if (!line.trim()) continue;
@@ -38,7 +38,7 @@ export function parseTurnTelemetry(text, hook) {
     } else if (record.type === 'event_msg' && payload.type === 'item_completed') {
       const interval = validInterval(payload.started_at_ms, payload.completed_at_ms);
       if (!interval) continue;
-      if (MODEL_ITEM_TYPES.has(payload.item?.type)) modelItemDurationMs += interval[1] - interval[0];
+      if (MODEL_ITEM_TYPES.has(payload.item?.type)) modelIntervals.push(interval);
       else excludedIntervals.push(interval);
     } else if (record.type === 'event_msg' && payload.type === 'task_complete') {
       completion = payload;
@@ -47,8 +47,9 @@ export function parseTurnTelemetry(text, hook) {
   }
   const turnDurationMs = positiveInteger(completion?.duration_ms) ? completion.duration_ms : null;
   const activeDurationMs = turnDurationMs
-    ? turnDurationMs - mergedDuration(excludedIntervals)
-    : modelItemDurationMs;
+    // Subtract the union of tool and model time, then add the model time back.
+    ? turnDurationMs - mergedDuration([...excludedIntervals, ...modelIntervals]) + mergedDuration(modelIntervals)
+    : modelIntervals.reduce((total, [start, end]) => total + end - start, 0);
   if (!completion || !usage || activeDurationMs <= 0) return null;
   return {
     model: hook.model,
