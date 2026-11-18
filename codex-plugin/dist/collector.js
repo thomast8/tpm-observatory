@@ -266,6 +266,7 @@ function recordTime(unixSeconds) {
 }
 
 // src/collector.js
+var TURN_LOOKBEHIND_BYTES = 1024 * 1024;
 var MAX_TURN_BYTES = 64 * 1024 * 1024;
 async function runCollector(action, input, dataDir) {
   const hook = validateInput(input, action);
@@ -322,10 +323,12 @@ function statusWithoutTranscript(previous) {
 async function readTurnChunk(path, requestedOffset) {
   const details = await stat(path);
   if (!details.isFile()) throw new Error("Hook transcript is not a file");
-  const fallback = Math.max(0, details.size - MAX_TURN_BYTES);
-  const start = requestedOffset !== void 0 && requestedOffset <= details.size ? requestedOffset : fallback;
-  const length = details.size - start;
-  if (length > MAX_TURN_BYTES) throw new Error("Turn telemetry exceeds the 64 MiB safety limit");
+  const end = details.size;
+  const fallback = Math.max(0, end - MAX_TURN_BYTES);
+  const marked = requestedOffset !== void 0 && requestedOffset <= end ? requestedOffset : fallback;
+  if (end - marked > MAX_TURN_BYTES) throw new Error("Turn telemetry exceeds the 64 MiB safety limit");
+  const start = Math.max(fallback, marked - TURN_LOOKBEHIND_BYTES);
+  const length = end - start;
   const buffer = Buffer.alloc(length);
   const file = await open(path, "r");
   try {

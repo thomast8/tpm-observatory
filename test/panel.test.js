@@ -54,20 +54,20 @@ test('renders average, interval, median and range in both units with consistent 
   const script = panel.match(/<script type="module">([\s\S]*?)<\/script>/)[1];
   const sample = { tpm: 1200, measuredAt: '2026-10-16T17:00:00Z' };
   const model = {
-    seriesId: 'test::priority', model: 'test', displayName: '<Test>', tierName: 'Fast',
+    seriesId: 'test::priority', model: 'test', displayName: '<Test>', tierName: 'Fast', serviceTier: 'priority',
     available: true, isDefault: false, latest: sample, samples: [sample],
     stats: { average: 1200, median: 1200, min: 600, max: 1800, count: 2, ci95Low: 900, ci95High: 1500 },
   };
   const slowerModel = {
     ...model,
-    seriesId: 'slow::default', model: 'slow', displayName: 'Slower', tierName: 'Standard',
+    seriesId: 'slow::default', model: 'slow', displayName: 'Slower', tierName: 'Standard', serviceTier: 'default',
     stats: { ...model.stats, average: 600 },
   };
   context.fixture = {
-    models: [slowerModel, model, { ...model, seriesId: 'ultra::ultra_fast', model: 'ultra', displayName: 'Ultra model', tierName: 'Ultra Fast' }], bestSeries: model.seriesId, runCount: 2,
+    models: [slowerModel, model, { ...model, seriesId: 'ultra::ultrafast', model: 'ultra', displayName: 'Ultra model', tierName: 'Ultrafast', serviceTier: 'ultrafast' }], bestSeries: model.seriesId, runCount: 2,
     collector: { state: 'active' }, measurement: 'Output per minute',
   };
-  const observed = runInNewContext(`${script}\ndashboard = fixture; tier = 'Fast'; render();
+  const observed = runInNewContext(`${script}\ndashboard = fixture; tier = 'priority'; render();
     const secondView = app.innerHTML; unit = 'minute'; render();
     ({ minuteView: app.innerHTML, secondView, colour: seriesColor(fixture.models[1]) });`, context);
   assert.match(observed.minuteView, /95% CI 900–1,500 · Median 1,200/);
@@ -94,28 +94,28 @@ test('renders average, interval, median and range in both units with consistent 
   assert.doesNotMatch(observed.secondView, />Slower</);
   assert.doesNotMatch(panel, /\.model-row .*display: none/);
   assert.ok(observed.secondView.indexOf('data-unit="second"') < observed.secondView.indexOf('data-unit="minute"'));
-  click({ target: { closest: () => ({ dataset: { action: 'tier', tier: 'Ultra Fast' } }) } });
-  assert.match(app.innerHTML, /data-tier="Ultra Fast" aria-pressed="true"/);
+  click({ target: { closest: () => ({ dataset: { action: 'tier', tier: 'ultrafast' } }) } });
+  assert.match(app.innerHTML, /data-tier="ultrafast" aria-pressed="true"/);
   assert.match(app.innerHTML, />Ultra model</);
   assert.doesNotMatch(app.innerHTML, />&lt;Test&gt;</);
-  assert.match(graph(app.innerHTML), /Ultra model · Ultra Fast: 1,200 TPM/);
+  assert.match(graph(app.innerHTML), /Ultra model · Ultrafast: 1,200 TPM/);
   assert.doesNotMatch(graph(app.innerHTML), /Slower|&lt;Test&gt;/);
-  click({ target: { closest: () => ({ dataset: { action: 'tier', tier: 'Standard' } }) } });
+  click({ target: { closest: () => ({ dataset: { action: 'tier', tier: 'default' } }) } });
   assert.match(app.innerHTML, />Slower</);
   assert.doesNotMatch(app.innerHTML, />Ultra model</);
   assert.match(graph(app.innerHTML), /Slower · Standard: 1,200 TPM/);
   assert.doesNotMatch(graph(app.innerHTML), /Ultra model|&lt;Test&gt;/);
   context.fixture.models[2].stats = null;
-  click({ target: { closest: () => ({ dataset: { action: 'tier', tier: 'Ultra Fast' } }) } });
+  click({ target: { closest: () => ({ dataset: { action: 'tier', tier: 'ultrafast' } }) } });
   assert.match(graph(app.innerHTML), /Waiting for completed turns/);
   assert.doesNotMatch(graph(app.innerHTML), /class="chart"|Slower|&lt;Test&gt;/);
 });
 
 test('uses one speed-tier toggle for the whole model list', () => {
   assert.match(panel, /aria-label="Speed tier"/);
-  assert.match(panel, /data-tier="Standard"/);
-  assert.match(panel, /data-tier="Fast"/);
-  assert.match(panel, /model\.tierName === tier/);
+  assert.match(panel, /data-tier="default"/);
+  assert.match(panel, /data-tier="priority"/);
+  assert.match(panel, /model\.serviceTier === tier/);
   assert.doesNotMatch(panel, /class="tier tier-/);
 });
 
