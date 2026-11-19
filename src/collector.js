@@ -4,6 +4,7 @@ import { fileURLToPath } from 'node:url';
 import { SampleStore } from './store.js';
 import { parseTurnTelemetry } from './telemetry.js';
 
+const TURN_LOOKBEHIND_BYTES = 1024 * 1024;
 const MAX_TURN_BYTES = 64 * 1024 * 1024;
 
 export async function runCollector(action, input, dataDir) {
@@ -67,11 +68,13 @@ export function statusWithoutTranscript(previous) {
 async function readTurnChunk(path, requestedOffset) {
   const details = await stat(path);
   if (!details.isFile()) throw new Error('Hook transcript is not a file');
-  // shortcut: read at most one large turn from an unmarked session, raise the cap if real turns exceed it.
-  const fallback = Math.max(0, details.size - MAX_TURN_BYTES);
-  const start = requestedOffset !== undefined && requestedOffset <= details.size ? requestedOffset : fallback;
-  const length = details.size - start;
-  if (length > MAX_TURN_BYTES) throw new Error('Turn telemetry exceeds the 64 MiB safety limit');
+  const end = details.size;
+  const fallback = Math.max(0, end - MAX_TURN_BYTES);
+  const marked = requestedOffset !== undefined && requestedOffset <= end ? requestedOffset : fallback;
+  if (end - marked > MAX_TURN_BYTES) throw new Error('Turn telemetry exceeds the 64 MiB safety limit');
+  // shortcut: settings precede the prompt hook, increase the lookbehind if Codex emits more pre-hook data.
+  const start = Math.max(fallback, marked - TURN_LOOKBEHIND_BYTES);
+  const length = end - start;
   const buffer = Buffer.alloc(length);
   const file = await open(path, 'r');
   try {

@@ -180,7 +180,7 @@ function parseTurnTelemetry(text, hook) {
   let targetStarted = false;
   let usage = null;
   let completion = null;
-  let modelItemDurationMs = 0;
+  const modelIntervals = [];
   const excludedIntervals = [];
   for (const line of text.split("\n")) {
     if (!line.trim()) continue;
@@ -209,7 +209,7 @@ function parseTurnTelemetry(text, hook) {
     } else if (record.type === "event_msg" && payload.type === "item_completed") {
       const interval = validInterval(payload.started_at_ms, payload.completed_at_ms);
       if (!interval) continue;
-      if (MODEL_ITEM_TYPES.has(payload.item?.type)) modelItemDurationMs += interval[1] - interval[0];
+      if (MODEL_ITEM_TYPES.has(payload.item?.type)) modelIntervals.push(interval);
       else excludedIntervals.push(interval);
     } else if (record.type === "event_msg" && payload.type === "task_complete") {
       completion = payload;
@@ -217,7 +217,7 @@ function parseTurnTelemetry(text, hook) {
     }
   }
   const turnDurationMs = positiveInteger(completion?.duration_ms) ? completion.duration_ms : null;
-  const activeDurationMs = turnDurationMs ? turnDurationMs - mergedDuration(excludedIntervals) : modelItemDurationMs;
+  const activeDurationMs = turnDurationMs ? turnDurationMs - mergedDuration([...excludedIntervals, ...modelIntervals]) + mergedDuration(modelIntervals) : modelIntervals.reduce((total, [start, end]) => total + end - start, 0);
   if (!completion || !usage || activeDurationMs <= 0) return null;
   return {
     model: hook.model,
@@ -266,6 +266,7 @@ function recordTime(unixSeconds) {
 }
 
 // src/collector.js
+var TURN_LOOKBEHIND_BYTES = 1024 * 1024;
 var MAX_TURN_BYTES = 64 * 1024 * 1024;
 async function runCollector(action, input, dataDir) {
   const hook = validateInput(input, action);
@@ -322,10 +323,12 @@ function statusWithoutTranscript(previous) {
 async function readTurnChunk(path, requestedOffset) {
   const details = await stat(path);
   if (!details.isFile()) throw new Error("Hook transcript is not a file");
-  const fallback = Math.max(0, details.size - MAX_TURN_BYTES);
-  const start = requestedOffset !== void 0 && requestedOffset <= details.size ? requestedOffset : fallback;
-  const length = details.size - start;
-  if (length > MAX_TURN_BYTES) throw new Error("Turn telemetry exceeds the 64 MiB safety limit");
+  const end = details.size;
+  const fallback = Math.max(0, end - MAX_TURN_BYTES);
+  const marked = requestedOffset !== void 0 && requestedOffset <= end ? requestedOffset : fallback;
+  if (end - marked > MAX_TURN_BYTES) throw new Error("Turn telemetry exceeds the 64 MiB safety limit");
+  const start = Math.max(fallback, marked - TURN_LOOKBEHIND_BYTES);
+  const length = end - start;
   const buffer = Buffer.alloc(length);
   const file = await open(path, "r");
   try {

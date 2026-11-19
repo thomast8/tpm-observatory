@@ -140,7 +140,7 @@
       const toast = document.querySelector('#toast');
       let dashboard = null;
       let unit = 'second';
-      let tier = 'Standard';
+      let tier = 'default';
       const hiddenSeries = new Set();
       let refreshInFlight = false;
       let pollTimer = null;
@@ -177,7 +177,9 @@
           .toSorted((left, right) => right.stats.average - left.stats.average);
         const best = dashboard.models.find((model) => model.seriesId === dashboard.bestSeries);
         const latest = measured.map((model) => model.latest).filter(Boolean).toSorted((a, b) => b.measuredAt.localeCompare(a.measuredAt))[0];
-        const compared = dashboard.models.filter((model) => model.tierName === tier);
+        const compared = dashboard.models.filter((model) => model.serviceTier === tier ||
+          (tier === 'ultrafast' && ['ultra_fast', 'ultra-fast'].includes(model.serviceTier)) ||
+          (tier === 'priority' && model.serviceTier === 'fast'));
         const comparedMeasured = compared.filter((model) => model.stats).toSorted((left, right) => right.stats.average - left.stats.average);
         const comparedUnmeasured = compared.filter((model) => !model.stats);
         app.innerHTML = `
@@ -204,7 +206,7 @@
             ${chart(comparedMeasured)}
           </section>
           <section class="panel">
-            <div class="panel-head"><div><h2 class="panel-title"><span class="section-index">02</span> Model comparison</h2><p class="panel-copy">Reasoning efforts are pooled within each model. The interval estimates the mean.</p></div><div class="panel-controls"><div class="unit-toggle" role="group" aria-label="Speed tier"><button class="unit-button ${tier === 'Standard' ? 'active' : ''}" data-action="tier" data-tier="Standard" aria-pressed="${tier === 'Standard'}">Standard</button><button class="unit-button ${tier === 'Fast' ? 'active' : ''}" data-action="tier" data-tier="Fast" aria-pressed="${tier === 'Fast'}">Fast</button><button class="unit-button ${tier === 'Ultra Fast' ? 'active' : ''}" data-action="tier" data-tier="Ultra Fast" aria-pressed="${tier === 'Ultra Fast'}">Ultra Fast</button></div><span class="panel-tag">95% confidence</span></div></div>
+            <div class="panel-head"><div><h2 class="panel-title"><span class="section-index">02</span> Model comparison</h2><p class="panel-copy">Reasoning efforts are pooled within each model. The interval estimates the mean.</p></div><div class="panel-controls"><div class="unit-toggle" role="group" aria-label="Speed tier"><button class="unit-button ${tier === 'default' ? 'active' : ''}" data-action="tier" data-tier="default" aria-pressed="${tier === 'default'}">Standard</button><button class="unit-button ${tier === 'priority' ? 'active' : ''}" data-action="tier" data-tier="priority" aria-pressed="${tier === 'priority'}">Fast</button><button class="unit-button ${tier === 'ultrafast' ? 'active' : ''}" data-action="tier" data-tier="ultrafast" aria-pressed="${tier === 'ultrafast'}">Ultra Fast</button></div><span class="panel-tag">95% confidence</span></div></div>
             <div class="models">${comparedMeasured.map((model) => modelRow(model)).join('')}</div>
             ${comparedUnmeasured.length ? `<p class="catalogue-label">Awaiting first observations</p><div class="models">${comparedUnmeasured.map((model) => modelRow(model)).join('')}</div>` : ''}
           </section>
@@ -332,7 +334,7 @@
             unit = button.dataset.unit === 'second' ? 'second' : 'minute';
             render();
           } else if (action === 'tier') {
-            tier = ['Standard', 'Fast', 'Ultra Fast'].includes(button.dataset.tier) ? button.dataset.tier : 'Standard';
+            tier = ['default', 'priority', 'ultrafast'].includes(button.dataset.tier) ? button.dataset.tier : 'default';
             render();
           } else if (action === 'series') {
             const id = button.dataset.series;

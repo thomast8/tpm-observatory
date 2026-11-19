@@ -20,11 +20,13 @@ test('skipping a Cloud turn does not downgrade a healthy local collector', () =>
 test('session shutdown collects the last marked turn once without turn or model input', async () => {
   const dataDir = await mkdtemp(join(tmpdir(), 'tpm-finalize-test-'));
   const transcriptPath = join(dataDir, 'transcript.jsonl');
-  await writeFile(transcriptPath, '');
+  await writeFile(transcriptPath, [
+    { type: 'event_msg', payload: { type: 'thread_settings_applied', thread_settings: { service_tier: 'ultrafast' } } },
+    { type: 'event_msg', payload: { type: 'task_started', turn_id: 'turn-1' } },
+  ].map((record) => JSON.stringify(record)).join('\n') + '\n');
   const input = { session_id: 'session-1', turn_id: 'turn-1', model: 'gpt-test', transcript_path: transcriptPath };
   await runCollector('mark', input, dataDir);
   await appendFile(transcriptPath, [
-    { type: 'event_msg', payload: { type: 'task_started', turn_id: 'turn-1' } },
     { type: 'token_usage_record', payload: { turn_id: 'turn-1', turn_token_usage: { output_tokens: 100, reasoning_output_tokens: 10 } } },
     { type: 'event_msg', payload: { type: 'task_complete', turn_id: 'turn-1', completed_at: 1_760_000_000, duration_ms: 1_000 } },
   ].map((record) => JSON.stringify(record)).join('\n'));
@@ -32,6 +34,7 @@ test('session shutdown collects the last marked turn once without turn or model 
   const sample = await runCollector('finalize', ending, dataDir);
   assert.equal(sample.turnId, 'turn-1');
   assert.equal(sample.model, 'gpt-test');
+  assert.equal(sample.serviceTier, 'ultrafast');
   assert.equal(sample.tpm, 6_000);
   await runCollector('collect', input, dataDir);
   await runCollector('finalize', ending, dataDir);
